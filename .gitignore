@@ -36,4 +36,5 @@ uploads/
 Thumbs.db
 .idea/
 .vscode/
-.claude/
+.claude/settings.local.json
+.windsurf/
