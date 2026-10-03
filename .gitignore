@@ -1,0 +1,39 @@
+# Dependencies and build output (all apps)
+node_modules/
+.next/
+out/
+dist/
+build/
+coverage/
+*.tsbuildinfo
+next-env.d.ts
+
+# Generated code
+e-commerece-backend/src/generated/
+
+# Secrets - never commit (use .env.example for templates)
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.crt
+*.p12
+*.pfx
+secrets/
+
+# Logs and local data
+*.log
+npm-debug.log*
+*.sql
+*.dump
+*.sqlite
+*.db
+uploads/
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+.claude/
