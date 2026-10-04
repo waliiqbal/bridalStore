@@ -10,6 +10,10 @@ import type { Env } from './config/env.validation.js';
 export function configureApp(app: INestApplication): INestApplication {
   const config = app.get<ConfigService<Env, true>>(ConfigService);
 
+  // Behind a load balancer, read the client IP from X-Forwarded-For (rate limits)
+  const trustProxy = config.get('TRUST_PROXY', { infer: true });
+  if (trustProxy > 0) (app as NestExpressApplication).set('trust proxy', trustProxy);
+
   app.setGlobalPrefix('api');
   app.use(cookieParser());
   app.useGlobalPipes(

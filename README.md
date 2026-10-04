@@ -55,6 +55,12 @@ Backend (`e-commerece-backend/.env`):
 | `JWT_SECRET` | none (required, 32+ chars) | Signs admin session tokens |
 | `ADMIN_SESSION_DAYS` | `7` | How long an admin stays logged in |
 | `SEED_ADMIN_EMAIL` / `SEED_ADMIN_PASSWORD` / `SEED_ADMIN_NAME` | none (seed only) | Owner account created by `npx prisma db seed` |
+| `CUSTOMER_JWT_SECRET` | none (required, 32+ chars, different from `JWT_SECRET`) | Signs customer session tokens |
+| `CUSTOMER_SESSION_DAYS` | `30` | How long a customer stays logged in |
+| `MAIL_DRIVER` / `MAIL_FROM` | `console` | `console` prints emails (password reset links) to the server log |
+| `TRUST_PROXY` | `0` | Number of proxies in front of the API, so rate limits see real client IPs |
+| `STORAGE_DRIVER`, `UPLOADS_*`, `S3_*` | `local` | Where uploaded images are stored (see `.env.example`) |
+| `FRONTEND_REVALIDATE_URL` / `REVALIDATE_SECRET` | empty | Lets the API refresh the storefront cache after admin changes |
 
 The API refuses to start if a required variable is missing or invalid, and says which one.
 

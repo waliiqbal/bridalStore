@@ -172,6 +172,12 @@ Payment routing rule:
 - Uploads: `POST /api/admin/uploads` (multipart field `files`). sharp checks the real type, auto-rotates, strips EXIF/GPS, fits 2400px, saves WebP. Storage is `StorageService` with `local` (served at `/uploads`) or `s3` (S3/R2) drivers, picked by `STORAGE_DRIVER`.
 - Redirects: when a product, collection, category or page slug changes, call `RedirectsService.recordSlugChange(tx, …)` **inside the same transaction**. `planRedirect()` keeps the table free of chains and loops. The storefront calls `GET /api/redirects/resolve?path=` on a 404.
 - Cache refresh: after every admin change, call `RevalidationService.notify([...tags])` (fire-and-forget, never awaited, never fails the request) with the tags in the table below.
+- Customer auth (`auth/customer/`): cookie `customer_token`, signed with `CUSTOMER_JWT_SECRET` (must differ from the admin `JWT_SECRET`), scope `customer`. Admin uses `admin_token` + `JWT_SECRET`; neither cookie works on the other side. `CustomerGuard` is global: controllers under `account` require a customer automatically; other routes opt in with `@CustomerAuth('required' | 'optional')` and read `@CurrentCustomer()`. Every request re-checks `isActive` and `sessionVersion`, so deactivation and password changes sign people out at once.
+- Guest-checkout customers have no password. Registering with their email does **not** sign in: it emails a single-use "finish creating your account" link (same reset-token flow), so nobody can claim someone else's orders by typing their email. Reset tokens: random, stored as SHA-256 only, single use, 1 hour.
+- CSRF: `CsrfGuard` (global) rejects POST/PUT/PATCH/DELETE without an `X-Requested-With` header. Webhooks called by other servers use `@SkipCsrf()`. E2E tests use `api(app)` from `test/helpers/app.ts`, which adds it.
+- Rate limits (`@nestjs/throttler`, per IP, in memory): login 10/min (admin and customer), register 5/min, forgot-password 3/min. Only routes with `ThrottlerGuard` are limited. Set `TRUST_PROXY` behind a load balancer. With several API instances, switch to a Redis store.
+- Mail: inject `MAIL_SERVICE`. `MAIL_DRIVER=console` logs emails (with links) and keeps recent ones in memory for tests; the real provider comes in phase 7.
+- Cart (`cart/`): httpOnly `cart_token` cookie, 30 days sliding. One cart per customer (`Cart.customerId` unique); the guest cart is merged on login/register (`planCartMerge`). Every read recalculates from the database. Lines are never dropped: each has `status` `OK | LIMITED | OUT_OF_STOCK | UNAVAILABLE` and `availableQuantity`; only `OK` lines count towards the subtotal, and any other line sets `canCheckout: false`. Max 10 per line, capped by stock (`capQuantity`). **Line totals = convert(unit AUD price) × quantity** — checkout and orders must use the same rule. `totals.discount/shipping/tax` are `null` until phase 5.
 - `main.ts` enables CORS for `FRONTEND_URL` (comma-separated list) with `credentials: true`.
 - ESM project (`"type": "module"`): imports use explicit `.js` extensions even in `.ts` files. Follow this for every new file.
 - The test runner is Vitest (not Jest), and linting is oxlint (not ESLint).
@@ -182,7 +188,9 @@ Each module lives in `src/modules/<name>/`:
 
 | Module | Responsibility |
 |---|---|
-| `auth` | Admin login and customer login (JWT in an httpOnly cookie). Separate guards: `AdminGuard`, `CustomerGuard`. |
+| `auth` | Admin login and customer login/register/password reset (JWT in httpOnly cookies, separate secrets). Separate guards: `AdminGuard`, `CustomerGuard`. |
+| `account` | Customer profile, password change, addresses (one default, ISO country codes), wishlist |
+| `customers` | Admin customer list/detail/deactivate |
 | `catalog` | Categories, products, variants, images, size guides, attributes |
 | `collections` | Collections, smart-rule → `where` builder, filter counts |
 | `cart` | Server-side cart, cookie token, add/update/remove, apply coupon |
@@ -195,14 +203,14 @@ Each module lives in `src/modules/<name>/`:
 | `uploads` | Image upload (sharp → WebP) to local disk or S3/R2; returns `{ url, width, height }` |
 | `redirects` | Old-slug redirects (automatic on slug change + admin CRUD), `resolve` for the storefront |
 | `revalidation` | Tells the Next.js storefront which cache tags to refresh after admin changes |
-| `mail` | Order confirmation and shipped emails |
+| `mail` | `MailService` (console driver now; real provider, password-reset/order/shipping templates in phase 7) |
 | `feeds` | `sitemap.xml`, Meta product feed |
 
 ### Conventions
 
 - **Routes:** public routes are under `/api/...`. Admin routes are under `/api/admin/...` and protected by `AdminGuard`. Keep public and admin controllers in separate files (`products.controller.ts`, `products.admin.controller.ts`).
 - **Validation:** validate all input with DTOs. Add `class-validator` + `class-transformer` and a global `ValidationPipe` (`whitelist: true, forbidNonWhitelisted: true, transform: true`) when building the first DTO.
-- **Cookies:** add `cookie-parser` in `main.ts` when building auth or cart.
+- **Cookies:** httpOnly, `sameSite=lax`, `secure` in production (`common/cookies.ts`).
 - **Thin controllers:** controllers only parse input and call services. Business logic goes in services. Prisma is used only inside services.
 - **Pagination:** list endpoints return `{ items, total, page, pageSize }`.
 - **Errors:** throw Nest HTTP exceptions with clear messages the frontend can show to users.
@@ -222,6 +230,8 @@ Read `AGENTS.md` first: Next.js 16 has breaking changes. Check `node_modules/nex
 - `src/modules/<domain>/` holds the `api/`, `components/`, `hooks/`, `types/` and `schemas/` folders, with a barrel `index.ts` per domain.
 - `src/shared/` holds presentation-only components and layouts.
 - `src/infrastructure/http/api-client.ts` is the **only** place `fetch` to the backend is configured (base URL, credentials, error handling). `modules/*/api` functions build on it.
+  - Browser calls to cart/account/auth must use `credentials: 'include'` and send **`X-Requested-With: XMLHttpRequest` on every POST/PUT/PATCH/DELETE** (the API rejects them otherwise).
+  - Server-side calls on behalf of a shopper (cart, account) must forward the `customer_token` and `cart_token` cookies and must not be cached.
 - `src/config/brand.ts` holds brand constants. `src/config/env.ts` is for typed env access; use it instead of reading `process.env` directly.
 - `src/store/`: Redux Toolkit is for **UI state only** (menus, drawers, selected currency). The cart is server data fetched from the API, not a Redux copy.
 - Path alias `@/*` → `src/*`. Styling is Tailwind CSS v4.

@@ -1,7 +1,6 @@
 import type { INestApplication } from '@nestjs/common';
 import sharp from 'sharp';
-import request from 'supertest';
-import { createTestApp, loginAsAdmin } from './helpers/app.js';
+import { api, createTestApp, loginAsAdmin } from './helpers/app.js';
 import { startRevalidateServer } from './helpers/revalidate-server.js';
 
 describe('Uploads, content, redirects & revalidation (e2e)', () => {
@@ -11,7 +10,7 @@ describe('Uploads, content, redirects & revalidation (e2e)', () => {
   const run = Date.now().toString(36);
   const cleanup: (() => Promise<unknown>)[] = [];
 
-  const http = () => request(app.getHttpServer());
+  const http = () => api(app);
   const admin = {
     get: (url: string) => http().get(url).set('Cookie', cookie),
     post: (url: string) => http().post(url).set('Cookie', cookie),

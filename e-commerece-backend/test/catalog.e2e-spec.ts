@@ -1,6 +1,5 @@
 import type { INestApplication } from '@nestjs/common';
-import request from 'supertest';
-import { createTestApp, loginAsAdmin } from './helpers/app.js';
+import { api, createTestApp, loginAsAdmin } from './helpers/app.js';
 
 interface Facets {
   sizes: { value: string; count: number; selected: boolean }[];
@@ -19,12 +18,12 @@ describe('Catalog & collections (e2e)', () => {
   const created = { categories: [] as string[], products: [] as string[], collections: [] as string[] };
 
   const admin = () => ({
-    get: (url: string) => request(app.getHttpServer()).get(url).set('Cookie', cookie),
-    post: (url: string) => request(app.getHttpServer()).post(url).set('Cookie', cookie),
-    patch: (url: string) => request(app.getHttpServer()).patch(url).set('Cookie', cookie),
-    delete: (url: string) => request(app.getHttpServer()).delete(url).set('Cookie', cookie),
+    get: (url: string) => api(app).get(url).set('Cookie', cookie),
+    post: (url: string) => api(app).post(url).set('Cookie', cookie),
+    patch: (url: string) => api(app).patch(url).set('Cookie', cookie),
+    delete: (url: string) => api(app).delete(url).set('Cookie', cookie),
   });
-  const shop = (url: string) => request(app.getHttpServer()).get(url);
+  const shop = (url: string) => api(app).get(url);
 
   beforeAll(async () => {
     app = await createTestApp();
@@ -223,7 +222,7 @@ describe('Catalog & collections (e2e)', () => {
 
     await admin().post(`/api/admin/collections/${manual.body.id}/products`).send({ productIds: ids }).expect(201);
     const reversed = [...ids].reverse();
-    await request(app.getHttpServer())
+    await api(app)
       .put(`/api/admin/collections/${manual.body.id}/products/reorder`)
       .set('Cookie', cookie)
       .send({ productIds: reversed })

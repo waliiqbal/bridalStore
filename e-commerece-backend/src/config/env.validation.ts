@@ -14,6 +14,14 @@ export interface Env {
   FRONTEND_URL: string;
   JWT_SECRET: string;
   ADMIN_SESSION_DAYS: number;
+  CUSTOMER_JWT_SECRET: string;
+  CUSTOMER_SESSION_DAYS: number;
+  // First FRONTEND_URL entry; used to build links in emails
+  STOREFRONT_URL: string;
+  MAIL_DRIVER: 'console' | 'provider';
+  MAIL_FROM: string;
+  // Number of trusted reverse proxies in front of the API (for client IPs)
+  TRUST_PROXY: number;
   STORAGE_DRIVER: 'local' | 's3';
   UPLOADS_DIR: string;
   UPLOADS_PUBLIC_URL: string;
@@ -23,6 +31,7 @@ export interface Env {
 }
 
 const NODE_ENVS = ['development', 'production', 'test'] as const;
+const MAIL_DRIVERS = ['console', 'provider'] as const;
 const STORAGE_DRIVERS = ['local', 's3'] as const;
 const isHttpUrl = (v: string) => /^https?:\/\/[^\s]+$/.test(v);
 const trimSlash = (v: string) => v.replace(/\/+$/, '');
@@ -57,6 +66,32 @@ export function validateEnv(raw: Record<string, unknown>): Env {
   const sessionDays = Number(str('ADMIN_SESSION_DAYS') || 7);
   if (!Number.isInteger(sessionDays) || sessionDays <= 0) {
     errors.push('ADMIN_SESSION_DAYS must be a positive integer');
+  }
+
+  // ── Customer accounts ──
+  const customerSecret = str('CUSTOMER_JWT_SECRET');
+  if (customerSecret.length < 32) {
+    errors.push(
+      'CUSTOMER_JWT_SECRET must be set and at least 32 characters (generate one with: openssl rand -hex 32)',
+    );
+  } else if (customerSecret === jwtSecret) {
+    errors.push('CUSTOMER_JWT_SECRET must be different from JWT_SECRET');
+  }
+  const customerDays = Number(str('CUSTOMER_SESSION_DAYS') || 30);
+  if (!Number.isInteger(customerDays) || customerDays <= 0) {
+    errors.push('CUSTOMER_SESSION_DAYS must be a positive integer');
+  }
+
+  // ── Email ──
+  const mailDriver = str('MAIL_DRIVER') || 'console';
+  if (!(MAIL_DRIVERS as readonly string[]).includes(mailDriver)) {
+    errors.push(`MAIL_DRIVER must be one of: ${MAIL_DRIVERS.join(', ')}`);
+  }
+  const mailFrom = str('MAIL_FROM') || 'Malikah Bridal Studio <hello@example.com>';
+
+  const trustProxy = Number(str('TRUST_PROXY') || 0);
+  if (!Number.isInteger(trustProxy) || trustProxy < 0) {
+    errors.push('TRUST_PROXY must be 0 or a positive integer (number of proxies in front of the API)');
   }
 
   // ── Image storage ──
@@ -103,6 +138,8 @@ export function validateEnv(raw: Record<string, unknown>): Env {
     }
   }
 
+  const frontendUrl = str('FRONTEND_URL') || 'http://localhost:3001';
+
   if (errors.length > 0) {
     throw new Error(
       `Invalid environment configuration (check your .env file):\n  - ${errors.join('\n  - ')}`,
@@ -113,9 +150,15 @@ export function validateEnv(raw: Record<string, unknown>): Env {
     NODE_ENV: nodeEnv as Env['NODE_ENV'],
     PORT: port,
     DATABASE_URL: databaseUrl,
-    FRONTEND_URL: str('FRONTEND_URL') || 'http://localhost:3001',
+    FRONTEND_URL: frontendUrl,
     JWT_SECRET: jwtSecret,
     ADMIN_SESSION_DAYS: sessionDays,
+    CUSTOMER_JWT_SECRET: customerSecret,
+    CUSTOMER_SESSION_DAYS: customerDays,
+    STOREFRONT_URL: trimSlash(frontendUrl.split(',')[0].trim()),
+    MAIL_DRIVER: mailDriver as Env['MAIL_DRIVER'],
+    MAIL_FROM: mailFrom,
+    TRUST_PROXY: trustProxy,
     STORAGE_DRIVER: storageDriver as Env['STORAGE_DRIVER'],
     UPLOADS_DIR: str('UPLOADS_DIR') || 'uploads',
     UPLOADS_PUBLIC_URL: uploadsPublicUrl,
