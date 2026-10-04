@@ -26,6 +26,7 @@ secrets/
 *.log
 npm-debug.log*
 *.sql
+!e-commerece-backend/prisma/migrations/**/*.sql
 *.dump
 *.sqlite
 *.db
