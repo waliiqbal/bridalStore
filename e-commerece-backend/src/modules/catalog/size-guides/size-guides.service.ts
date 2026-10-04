@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { assertNoNulls, definedOnly } from '../../../common/validation.js';
 import { PrismaService } from '../../../prisma/prisma.service.js';
+import { CacheTags, RevalidationService } from '../../revalidation/revalidation.service.js';
 import type { CreateSizeGuideDto, UpdateSizeGuideDto } from './dto/size-guide.dto.js';
 
 const SELECT = {
@@ -13,7 +14,15 @@ const SELECT = {
 
 @Injectable()
 export class SizeGuidesService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly revalidation: RevalidationService,
+  ) {}
+
+  // Size guides show on product pages.
+  private notify() {
+    void this.revalidation.notify([CacheTags.products]);
+  }
 
   list() {
     return this.prisma.sizeGuide.findMany({ select: SELECT, orderBy: { name: 'asc' } });
@@ -25,24 +34,29 @@ export class SizeGuidesService {
     return guide;
   }
 
-  create(dto: CreateSizeGuideDto) {
-    return this.prisma.sizeGuide.create({ data: dto, select: SELECT });
+  async create(dto: CreateSizeGuideDto) {
+    const guide = await this.prisma.sizeGuide.create({ data: dto, select: SELECT });
+    this.notify();
+    return guide;
   }
 
   async update(id: string, dto: UpdateSizeGuideDto) {
     assertNoNulls(dto, ['name', 'content']);
     await this.get(id);
-    return this.prisma.sizeGuide.update({
+    const guide = await this.prisma.sizeGuide.update({
       where: { id },
       data: definedOnly(dto),
       select: SELECT,
     });
+    this.notify();
+    return guide;
   }
 
   // Products using it simply stop showing a size guide (onDelete: SetNull).
   async remove(id: string) {
     await this.get(id);
     await this.prisma.sizeGuide.delete({ where: { id } });
+    this.notify();
     return { deleted: true };
   }
 }

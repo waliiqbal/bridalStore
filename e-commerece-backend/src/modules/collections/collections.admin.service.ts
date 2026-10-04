@@ -7,6 +7,8 @@ import type { CollectionType, Prisma } from '../../generated/prisma/client.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { CategoriesService } from '../catalog/categories/categories.service.js';
 import { AUD_CONTEXT } from '../pricing/currency.service.js';
+import { RedirectsService } from '../redirects/redirects.service.js';
+import { CacheTags, RevalidationService } from '../revalidation/revalidation.service.js';
 import {
   buildCollectionWhere,
   normalizeRule,
@@ -63,7 +65,18 @@ export class CollectionsAdminService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly categories: CategoriesService,
+    private readonly redirects: RedirectsService,
+    private readonly revalidation: RevalidationService,
   ) {}
+
+  // Collection pages use collection:<slug>; pages with product sections and
+  // menus also subscribe to it. "collections" covers lists of collections.
+  private notify(...slugs: (string | undefined)[]) {
+    void this.revalidation.notify([
+      ...slugs.map((slug) => slug && CacheTags.collection(slug)),
+      CacheTags.collections,
+    ]);
+  }
 
   list() {
     return this.prisma.collection.findMany({
@@ -120,6 +133,7 @@ export class CollectionsAdminService {
       },
       select: { id: true },
     });
+    this.notify(slug);
     return this.get(id);
   }
 
@@ -136,7 +150,7 @@ export class CollectionsAdminService {
     ]);
     const current = await this.prisma.collection.findUnique({
       where: { id },
-      select: { type: true, defaultSort: true },
+      select: { type: true, defaultSort: true, slug: true },
     });
     if (!current) throw new NotFoundException('Collection not found');
 
@@ -164,32 +178,40 @@ export class CollectionsAdminService {
         : dto.defaultSort;
     const { rules: _rules, slug: _slug, ...fields } = dto;
 
-    await this.prisma.collection.update({
-      where: { id },
-      data: definedOnly({
-        ...fields,
-        slug,
-        defaultSort,
-        rules: rules
-          ? { deleteMany: {}, create: rules }
-          : switchedToManual
-            ? { deleteMany: {} }
-            : undefined,
-        products: switchedToSmart ? { deleteMany: {} } : undefined,
-      }),
-      select: { id: true },
+    const slugChanged = slug !== undefined && slug !== current.slug;
+
+    await this.prisma.$transaction(async (tx) => {
+      await tx.collection.update({
+        where: { id },
+        data: definedOnly({
+          ...fields,
+          slug,
+          defaultSort,
+          rules: rules
+            ? { deleteMany: {}, create: rules }
+            : switchedToManual
+              ? { deleteMany: {} }
+              : undefined,
+          products: switchedToSmart ? { deleteMany: {} } : undefined,
+        }),
+        select: { id: true },
+      });
+      if (slugChanged) await this.redirects.recordSlugChange(tx, 'collection', current.slug, slug);
     });
+    this.notify(current.slug, slugChanged ? slug : undefined);
+    if (slugChanged) void this.revalidation.notify([CacheTags.redirects]);
     return this.get(id);
   }
 
   async remove(id: string) {
-    await this.findType(id);
+    const { slug } = await this.findCollection(id);
     await this.prisma.collection.delete({ where: { id } });
+    this.notify(slug);
     return { deleted: true };
   }
 
   async addProducts(id: string, productIds: string[]) {
-    await this.assertManual(id);
+    const slug = await this.assertManual(id);
     const [found, last] = await Promise.all([
       this.prisma.product.count({ where: { id: { in: productIds } } }),
       this.prisma.collectionProduct.aggregate({
@@ -205,20 +227,22 @@ export class CollectionsAdminService {
       data: productIds.map((productId, i) => ({ collectionId: id, productId, sortOrder: start + i })),
       skipDuplicates: true,
     });
+    this.notify(slug);
     return { added: count, alreadyInCollection: productIds.length - count };
   }
 
   async removeProduct(id: string, productId: string) {
-    await this.assertManual(id);
+    const slug = await this.assertManual(id);
     const { count } = await this.prisma.collectionProduct.deleteMany({
       where: { collectionId: id, productId },
     });
     if (!count) throw new NotFoundException('This product is not in the collection');
+    this.notify(slug);
     return { removed: true };
   }
 
   async reorderProducts(id: string, productIds: string[]) {
-    await this.assertManual(id);
+    const slug = await this.assertManual(id);
     const found = await this.prisma.collectionProduct.count({
       where: { collectionId: id, productId: { in: productIds } },
     });
@@ -233,6 +257,7 @@ export class CollectionsAdminService {
         }),
       ),
     );
+    this.notify(slug);
     return { reordered: productIds.length };
   }
 
@@ -316,21 +341,24 @@ export class CollectionsAdminService {
     }
   }
 
-  private async findType(id: string): Promise<CollectionType> {
+  private async findCollection(id: string): Promise<{ type: CollectionType; slug: string }> {
     const collection = await this.prisma.collection.findUnique({
       where: { id },
-      select: { type: true },
+      select: { type: true, slug: true },
     });
     if (!collection) throw new NotFoundException('Collection not found');
-    return collection.type;
+    return collection;
   }
 
-  private async assertManual(id: string) {
-    if ((await this.findType(id)) !== 'MANUAL') {
+  // Returns the slug for cache tags.
+  private async assertManual(id: string): Promise<string> {
+    const { type, slug } = await this.findCollection(id);
+    if (type !== 'MANUAL') {
       throw new BadRequestException(
         'Products can only be picked by hand in hand-picked (manual) collections',
       );
     }
+    return slug;
   }
 
   private async takenSlugs(prefix: string, excludeId?: string) {

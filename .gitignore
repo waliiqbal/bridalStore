@@ -30,7 +30,7 @@ npm-debug.log*
 *.dump
 *.sqlite
 *.db
-uploads/
+/e-commerece-backend/uploads/
 
 # OS / editor
 .DS_Store

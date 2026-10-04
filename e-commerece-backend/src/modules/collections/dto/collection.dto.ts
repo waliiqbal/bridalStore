@@ -17,6 +17,7 @@ import {
   MinLength,
   ValidateNested,
 } from 'class-validator';
+import { SanitizeHtml } from '../../../common/html/sanitize-html.js';
 import { PaginationQueryDto } from '../../../common/pagination/pagination.js';
 import {
   CollectionSort,
@@ -74,11 +75,13 @@ export class CreateCollectionDto {
   @IsOptional()
   @IsString()
   @MaxLength(5000)
+  @SanitizeHtml()
   description?: string | null;
 
   @IsOptional()
   @IsString()
   @MaxLength(50_000)
+  @SanitizeHtml()
   seoContent?: string | null;
 
   @IsOptional()

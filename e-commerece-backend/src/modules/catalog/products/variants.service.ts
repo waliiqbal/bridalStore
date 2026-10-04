@@ -1,6 +1,7 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { definedOnly } from '../../../common/validation.js';
 import { PrismaService } from '../../../prisma/prisma.service.js';
+import { CacheTags, RevalidationService } from '../../revalidation/revalidation.service.js';
 import type { GenerateVariantsDto, UpdateVariantDto } from './dto/product.dto.js';
 import { normalizeOptions, planVariants, productSkuCode } from './variant-generator.js';
 
@@ -17,7 +18,10 @@ const VARIANT_SELECT = {
 
 @Injectable()
 export class VariantsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly revalidation: RevalidationService,
+  ) {}
 
   async generate(productId: string, dto: GenerateVariantsDto) {
     const sizes = normalizeOptions(dto.sizes);
@@ -64,6 +68,7 @@ export class VariantsService {
       });
     }
 
+    if (planned.length > 0) this.notify(product.slug);
     const combinations = Math.max(sizes.length, 1) * Math.max(colours.length, 1);
     return {
       created: planned.length,
@@ -77,23 +82,26 @@ export class VariantsService {
   }
 
   async update(productId: string, variantId: string, dto: UpdateVariantDto) {
-    await this.assertBelongs(productId, variantId);
-    return this.prisma.productVariant.update({
+    const slug = await this.assertBelongs(productId, variantId);
+    const variant = await this.prisma.productVariant.update({
       where: { id: variantId },
       data: definedOnly({ ...dto, sku: dto.sku?.trim().toUpperCase() }),
       select: VARIANT_SELECT,
     });
+    this.notify(slug);
+    return variant;
   }
 
   // A variant that appears in any order is deactivated, never deleted.
   async remove(productId: string, variantId: string) {
-    await this.assertBelongs(productId, variantId);
+    const slug = await this.assertBelongs(productId, variantId);
     const ordered = await this.prisma.orderItem.count({ where: { variantId } });
     if (ordered > 0) {
       await this.prisma.productVariant.update({
         where: { id: variantId },
         data: { isActive: false },
       });
+      this.notify(slug);
       return {
         deleted: false,
         deactivated: true,
@@ -102,13 +110,22 @@ export class VariantsService {
       };
     }
     await this.prisma.productVariant.delete({ where: { id: variantId } });
+    this.notify(slug);
     return { deleted: true, deactivated: false };
   }
 
-  private async assertBelongs(productId: string, variantId: string) {
-    const found = await this.prisma.productVariant.count({
+  // Returns the product slug for cache tags.
+  private async assertBelongs(productId: string, variantId: string): Promise<string> {
+    const variant = await this.prisma.productVariant.findFirst({
       where: { id: variantId, productId },
+      select: { product: { select: { slug: true } } },
     });
-    if (!found) throw new NotFoundException('Variant not found');
+    if (!variant) throw new NotFoundException('Variant not found');
+    return variant.product.slug;
+  }
+
+  // Sizes, stock and prices show on product pages and cards everywhere.
+  private notify(productSlug: string) {
+    void this.revalidation.notify([CacheTags.product(productSlug), CacheTags.products]);
   }
 }

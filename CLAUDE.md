@@ -166,6 +166,12 @@ Payment routing rule:
 - Product cards: `PRODUCT_CARD_SELECT` + `toProductCard()` (`catalog/products/product-card.ts`). "Available" variant = `isActive && stock > 0` (`AVAILABLE_VARIANT`), used by card sizes and size/colour filters.
 - Collections: `buildCollectionWhere()` (`collections/collection-rules.ts`) is the only rules → `where` function; `buildFilterWhere(filters, exclude?)` builds storefront filters, and facet counts exclude their own group. Sorting, PRICE rules and price filters use `Product.price` (variant overrides apply only on the product page).
 - Tags are stored lowercase. Deleting a category/attribute value also deletes smart rules that point at it. Products/variants with order history are archived/deactivated, never deleted.
+- Listings: `ListingService` (`collections/listing.service.ts`) does cards, sorting, filters and facets for **both** collection pages and category pages (`GET /api/categories/:slug`). Don't build a second listing.
+- Pages: `GET /api/pages/:slug` (home = `home`, which can't be deleted, renamed or unpublished). Product sections are resolved with one id-only query per distinct collection (max 12 product sections per page) plus one batched card query; never query per section. `validateSection()` holds the per-type rules.
+- Rich text: every admin HTML field uses the `@SanitizeHtml()` DTO decorator (`common/html/sanitize-html.ts`, allow-list). Add it to any new HTML field. Links use `@IsSafeLink()`, image URLs `@IsImageUrl()` (`common/validation.ts`).
+- Uploads: `POST /api/admin/uploads` (multipart field `files`). sharp checks the real type, auto-rotates, strips EXIF/GPS, fits 2400px, saves WebP. Storage is `StorageService` with `local` (served at `/uploads`) or `s3` (S3/R2) drivers, picked by `STORAGE_DRIVER`.
+- Redirects: when a product, collection, category or page slug changes, call `RedirectsService.recordSlugChange(tx, …)` **inside the same transaction**. `planRedirect()` keeps the table free of chains and loops. The storefront calls `GET /api/redirects/resolve?path=` on a 404.
+- Cache refresh: after every admin change, call `RevalidationService.notify([...tags])` (fire-and-forget, never awaited, never fails the request) with the tags in the table below.
 - `main.ts` enables CORS for `FRONTEND_URL` (comma-separated list) with `credentials: true`.
 - ESM project (`"type": "module"`): imports use explicit `.js` extensions even in `.ts` files. Follow this for every new file.
 - The test runner is Vitest (not Jest), and linting is oxlint (not ESLint).
@@ -186,7 +192,9 @@ Each module lives in `src/modules/<name>/`:
 | `payments` | `PaymentProvider` interface with `square`, `stripe` and `paypal` adapters, plus webhook controllers |
 | `shipping` | Zones and rates; finds the zone for a country code |
 | `content` | Pages, sections, menus, banners, FAQ, store settings |
-| `uploads` | Image upload to S3 or Cloudinary; returns the URL |
+| `uploads` | Image upload (sharp → WebP) to local disk or S3/R2; returns `{ url, width, height }` |
+| `redirects` | Old-slug redirects (automatic on slug change + admin CRUD), `resolve` for the storefront |
+| `revalidation` | Tells the Next.js storefront which cache tags to refresh after admin changes |
 | `mail` | Order confirmation and shipped emails |
 | `feeds` | `sitemap.xml`, Meta product feed |
 
@@ -224,6 +232,7 @@ Read `AGENTS.md` first: Next.js 16 has breaking changes. Check `node_modules/nex
 |---|---|
 | `/` | Homepage, rendered from the `home` Page sections |
 | `/collections/[slug]` | Banner, intro, notice, filters, sort, paginated grid, SEO text with "Read more" |
+| `/categories/[slug]` | Same layout as a collection page, for a category and its sub-categories (`GET /api/categories/:slug`) |
 | `/products/[slug]` | Gallery with zoom, colour/size picker, size guide, price/sale price, stock, add to cart, wishlist |
 | `/pages/[slug]` | CMS pages built from sections |
 | `/cart`, `/checkout`, `/account/*`, `/search` | Cart, checkout, customer account, search |
@@ -279,7 +288,29 @@ These are promised to the client, so they're not optional:
 - A WhatsApp chat button (number from `StoreSettings`) and social links.
 - Automatic emails: order confirmation and shipping update.
 
+## Storefront cache tags
+
+The backend POSTs `{ "tags": [...] }` to `FRONTEND_REVALIDATE_URL` with header `x-revalidate-secret: <REVALIDATE_SECRET>` after admin changes. The frontend must tag its `fetch` calls with the **same** names and call `revalidateTag()` for each tag it receives. Tag builders: `CacheTags` in `src/modules/revalidation/revalidation.service.ts`.
+
+| Tag | Sent when | Frontend fetches that should use it |
+|---|---|---|
+| `product:<slug>` | product, its variants (stock/price/sizes) change; old **and** new slug on rename | product page |
+| `products` | any product/variant change, attributes/filters, size guides | collection pages, category pages, search, pages with product sections, product pages |
+| `collection:<slug>` | collection edited, products added/removed/reordered; old + new slug on rename | collection page, pages with a section/tile using it |
+| `collections` | any collection change | anything listing collections (tiles, menus) |
+| `category:<slug>` | category edited; old + new slug on rename | category page |
+| `categories` | any category change or reorder | category tree, menus, breadcrumbs on product/category pages |
+| `page:<slug>` | page or its sections change; old + new slug on rename | that CMS page (`page:home` = homepage) |
+| `pages` | any page created/renamed/deleted | footer page links |
+| `menu:<handle>` | menu items change | header (`menu:main`), footer (`menu:footer`) |
+| `banners` | any banner change | banner placements |
+| `faqs` | any FAQ change | FAQ page and pages with an FAQ section |
+| `settings` | store settings change | root layout (announcement bar, WhatsApp, social links, Pixel/GA) |
+| `redirects` | a redirect is created/changed/deleted (including on slug changes) | cached redirect lookups |
+
 ## Cross-cutting notes
+
+- Uploaded image URLs come from `UPLOADS_PUBLIC_URL` (local) or `S3_PUBLIC_URL` (S3/R2). Add that host to `images.remotePatterns` in `next.config.ts` for `next/image`.
 
 - Backend CORS and the frontend dev port are coupled: the backend defaults to allowing `http://localhost:3001`. Keep `FRONTEND_URL` and the frontend port in sync.
 - There is no shared types package yet. Until one exists, keep frontend API types in `src/modules/<domain>/types/` matching the backend DTOs exactly, and update both sides in the same change.

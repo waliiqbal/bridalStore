@@ -15,6 +15,7 @@ import {
   MinLength,
   ValidateNested,
 } from 'class-validator';
+import { SanitizeHtml } from '../../../../common/html/sanitize-html.js';
 import { PaginationQueryDto } from '../../../../common/pagination/pagination.js';
 import { ProductStatus } from '../../../../generated/prisma/enums.js';
 
@@ -53,11 +54,13 @@ export class CreateProductDto {
   @IsOptional()
   @IsString()
   @MaxLength(20_000)
+  @SanitizeHtml()
   description?: string | null;
 
   @IsOptional()
   @IsString()
   @MaxLength(20_000)
+  @SanitizeHtml()
   details?: string | null;
 
   @IsOptional()

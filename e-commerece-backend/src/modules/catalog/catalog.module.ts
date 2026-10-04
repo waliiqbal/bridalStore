@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { PricingModule } from '../pricing/pricing.module.js';
+import { RedirectsModule } from '../redirects/redirects.module.js';
 import { AttributesAdminController } from './attributes/attributes.admin.controller.js';
 import { AttributesService } from './attributes/attributes.service.js';
 import { CategoriesAdminController } from './categories/categories.admin.controller.js';
@@ -14,7 +15,7 @@ import { SizeGuidesAdminController } from './size-guides/size-guides.admin.contr
 import { SizeGuidesService } from './size-guides/size-guides.service.js';
 
 @Module({
-  imports: [PricingModule],
+  imports: [PricingModule, RedirectsModule],
   controllers: [
     CategoriesController,
     CategoriesAdminController,

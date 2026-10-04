@@ -6,6 +6,7 @@ import {
   MaxLength,
   MinLength,
 } from 'class-validator';
+import { SanitizeHtml } from '../../../../common/html/sanitize-html.js';
 
 export class CreateCategoryDto {
   @IsString()
@@ -22,6 +23,7 @@ export class CreateCategoryDto {
   @IsOptional()
   @IsString()
   @MaxLength(5000)
+  @SanitizeHtml()
   description?: string | null;
 
   @IsOptional()

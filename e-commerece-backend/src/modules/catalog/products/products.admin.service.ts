@@ -5,6 +5,8 @@ import { resolveSlug } from '../../../common/slug/slug.js';
 import { assertNoNulls, definedOnly } from '../../../common/validation.js';
 import type { Prisma } from '../../../generated/prisma/client.js';
 import { PrismaService } from '../../../prisma/prisma.service.js';
+import { RedirectsService } from '../../redirects/redirects.service.js';
+import { CacheTags, RevalidationService } from '../../revalidation/revalidation.service.js';
 import { CategoriesService } from '../categories/categories.service.js';
 import type {
   AdminProductListQueryDto,
@@ -74,7 +76,17 @@ export class ProductsAdminService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly categories: CategoriesService,
+    private readonly redirects: RedirectsService,
+    private readonly revalidation: RevalidationService,
   ) {}
+
+  // Product pages subscribe to product:<slug>; listings, search and carousels to "products".
+  notifyChanged(...slugs: (string | undefined)[]) {
+    void this.revalidation.notify([
+      ...slugs.map((slug) => slug && CacheTags.product(slug)),
+      CacheTags.products,
+    ]);
+  }
 
   async list(query: AdminProductListQueryDto) {
     const where: Prisma.ProductWhereInput = {};
@@ -173,6 +185,7 @@ export class ProductsAdminService {
       },
       select: { id: true },
     });
+    this.notifyChanged(slug);
     return this.get(id);
   }
 
@@ -191,7 +204,7 @@ export class ProductsAdminService {
     ]);
     const current = await this.prisma.product.findUnique({
       where: { id },
-      select: { price: true, compareAtPrice: true },
+      select: { price: true, compareAtPrice: true, slug: true },
     });
     if (!current) throw new NotFoundException('Product not found');
 
@@ -210,33 +223,43 @@ export class ProductsAdminService {
           );
     const { images, attributeValueIds, tags, slug: _slug, ...fields } = dto;
 
-    // One update call: nested deleteMany + create replace images/filters atomically.
-    await this.prisma.product.update({
-      where: { id },
-      data: definedOnly({
-        ...fields,
-        slug,
-        tags: tags && normalizeTags(tags),
-        images: images && { deleteMany: {}, create: imageRows(images) },
-        attributes: attributeValueIds && {
-          deleteMany: {},
-          create: attributeValueIds.map((attributeValueId) => ({ attributeValueId })),
-        },
-      }),
-      select: { id: true },
+    const slugChanged = slug !== undefined && slug !== current.slug;
+
+    // Nested deleteMany + create replace images/filters atomically; a new slug
+    // gets its redirect in the same transaction so the old URL never breaks.
+    await this.prisma.$transaction(async (tx) => {
+      await tx.product.update({
+        where: { id },
+        data: definedOnly({
+          ...fields,
+          slug,
+          tags: tags && normalizeTags(tags),
+          images: images && { deleteMany: {}, create: imageRows(images) },
+          attributes: attributeValueIds && {
+            deleteMany: {},
+            create: attributeValueIds.map((attributeValueId) => ({ attributeValueId })),
+          },
+        }),
+        select: { id: true },
+      });
+      if (slugChanged) await this.redirects.recordSlugChange(tx, 'product', current.slug, slug);
     });
+
+    this.notifyChanged(current.slug, slugChanged ? slug : undefined);
+    if (slugChanged) void this.revalidation.notify([CacheTags.redirects]);
     return this.get(id);
   }
 
   // Orders keep a snapshot, but variants used in orders must never be deleted,
   // so a product with order history is archived (hidden from the shop) instead.
   async remove(id: string) {
-    const product = await this.prisma.product.findUnique({ where: { id }, select: { id: true } });
+    const product = await this.prisma.product.findUnique({ where: { id }, select: { slug: true } });
     if (!product) throw new NotFoundException('Product not found');
 
     const ordered = await this.prisma.orderItem.count({ where: { variant: { productId: id } } });
     if (ordered > 0) {
       await this.prisma.product.update({ where: { id }, data: { status: 'ARCHIVED' } });
+      this.notifyChanged(product.slug);
       return {
         deleted: false,
         archived: true,
@@ -246,6 +269,7 @@ export class ProductsAdminService {
     }
 
     await this.prisma.product.delete({ where: { id } });
+    this.notifyChanged(product.slug);
     return { deleted: true, archived: false };
   }
 

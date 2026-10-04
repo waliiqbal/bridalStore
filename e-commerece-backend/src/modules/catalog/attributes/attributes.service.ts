@@ -7,6 +7,7 @@ import { resolveSlug } from '../../../common/slug/slug.js';
 import { assertNoNulls, definedOnly } from '../../../common/validation.js';
 import type { Prisma } from '../../../generated/prisma/client.js';
 import { PrismaService } from '../../../prisma/prisma.service.js';
+import { CacheTags, RevalidationService } from '../../revalidation/revalidation.service.js';
 import type {
   CreateAttributeDto,
   CreateAttributeValueDto,
@@ -28,7 +29,15 @@ const ATTRIBUTE_SELECT = {
 
 @Injectable()
 export class AttributesService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly revalidation: RevalidationService,
+  ) {}
+
+  // Filters and product attributes appear on every listing and product page.
+  private notify() {
+    void this.revalidation.notify([CacheTags.products]);
+  }
 
   list() {
     return this.prisma.attribute.findMany({
@@ -52,10 +61,12 @@ export class AttributesService {
       (prefix) => this.takenAttributeSlugs(prefix),
     );
     const last = await this.prisma.attribute.aggregate({ _max: { sortOrder: true } });
-    return this.prisma.attribute.create({
+    const result = await this.prisma.attribute.create({
       data: { ...dto, slug, sortOrder: (last._max.sortOrder ?? -1) + 1 },
       select: ATTRIBUTE_SELECT,
     });
+    this.notify();
+    return result;
   }
 
   async update(id: string, dto: UpdateAttributeDto) {
@@ -68,11 +79,13 @@ export class AttributesService {
             { explicit: dto.slug, source: '', entity: 'filter' },
             (prefix) => this.takenAttributeSlugs(prefix, id),
           );
-    return this.prisma.attribute.update({
+    const result = await this.prisma.attribute.update({
       where: { id },
       data: definedOnly({ ...dto, slug }),
       select: ATTRIBUTE_SELECT,
     });
+    this.notify();
+    return result;
   }
 
   async remove(id: string) {
@@ -90,6 +103,7 @@ export class AttributesService {
         WHERE ${id} = ANY("filterAttributeIds")`,
       this.prisma.attribute.delete({ where: { id } }),
     ]);
+    this.notify();
     return { deleted: true };
   }
 
@@ -103,6 +117,7 @@ export class AttributesService {
         this.prisma.attribute.update({ where: { id }, data: { sortOrder } }),
       ),
     );
+    this.notify();
     return { reordered: ids.length };
   }
 
@@ -116,7 +131,7 @@ export class AttributesService {
       where: { attributeId },
       _max: { sortOrder: true },
     });
-    return this.prisma.attributeValue.create({
+    const result = await this.prisma.attributeValue.create({
       data: {
         attributeId,
         value: dto.value,
@@ -125,6 +140,8 @@ export class AttributesService {
       },
       select: { id: true, value: true, slug: true, sortOrder: true },
     });
+    this.notify();
+    return result;
   }
 
   async updateValue(attributeId: string, valueId: string, dto: UpdateAttributeValueDto) {
@@ -137,11 +154,13 @@ export class AttributesService {
             { explicit: dto.slug, source: '', entity: 'option' },
             (prefix) => this.takenValueSlugs(attributeId, prefix, valueId),
           );
-    return this.prisma.attributeValue.update({
+    const result = await this.prisma.attributeValue.update({
       where: { id: valueId },
       data: definedOnly({ value: dto.value, slug }),
       select: { id: true, value: true, slug: true, sortOrder: true },
     });
+    this.notify();
+    return result;
   }
 
   async removeValue(attributeId: string, valueId: string) {
@@ -152,6 +171,7 @@ export class AttributesService {
       }),
       this.prisma.attributeValue.delete({ where: { id: valueId } }),
     ]);
+    this.notify();
     return { deleted: true };
   }
 
@@ -167,6 +187,7 @@ export class AttributesService {
         this.prisma.attributeValue.update({ where: { id }, data: { sortOrder } }),
       ),
     );
+    this.notify();
     return { reordered: ids.length };
   }
 

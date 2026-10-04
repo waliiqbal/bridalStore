@@ -1,5 +1,6 @@
 import { PartialType } from '@nestjs/mapped-types';
 import { IsString, MaxLength, MinLength } from 'class-validator';
+import { SanitizeHtml } from '../../../../common/html/sanitize-html.js';
 
 export class CreateSizeGuideDto {
   @IsString()
@@ -11,6 +12,7 @@ export class CreateSizeGuideDto {
   @IsString()
   @MinLength(1)
   @MaxLength(50_000)
+  @SanitizeHtml()
   content: string;
 }
 

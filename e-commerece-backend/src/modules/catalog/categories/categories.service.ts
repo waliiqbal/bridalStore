@@ -7,21 +7,36 @@ import {
 import { resolveSlug } from '../../../common/slug/slug.js';
 import { assertNoNulls, definedOnly } from '../../../common/validation.js';
 import { PrismaService } from '../../../prisma/prisma.service.js';
+import { RedirectsService } from '../../redirects/redirects.service.js';
+import { CacheTags, RevalidationService } from '../../revalidation/revalidation.service.js';
 import { buildTree, CategoryIndex } from './category-tree.js';
 import type { CreateCategoryDto, UpdateCategoryDto } from './dto/category.dto.js';
 
-const INDEX_SELECT = { id: true, parentId: true, name: true, slug: true } as const;
+const INDEX_SELECT = { id: true, parentId: true, name: true, slug: true, isVisible: true } as const;
 
 export type CategoryIndexRow = {
   id: string;
   parentId: string | null;
   name: string;
   slug: string;
+  isVisible: boolean;
 };
 
 @Injectable()
 export class CategoriesService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly redirects: RedirectsService,
+    private readonly revalidation: RevalidationService,
+  ) {}
+
+  // Category pages use category:<slug>; menus, trees and breadcrumbs use "categories".
+  private notify(...slugs: (string | undefined)[]) {
+    void this.revalidation.notify([
+      ...slugs.map((slug) => slug && CacheTags.category(slug)),
+      CacheTags.categories,
+    ]);
+  }
 
   // The whole category table is small; one query gives tree lookups
   // (descendants, breadcrumbs, cycle checks) without per-level queries.
@@ -89,7 +104,7 @@ export class CategoriesService {
       _max: { sortOrder: true },
     });
 
-    return this.prisma.category.create({
+    const category = await this.prisma.category.create({
       data: {
         ...dto,
         slug,
@@ -97,11 +112,13 @@ export class CategoriesService {
         sortOrder: (last._max.sortOrder ?? -1) + 1,
       },
     });
+    this.notify(category.slug);
+    return category;
   }
 
   async update(id: string, dto: UpdateCategoryDto) {
     assertNoNulls(dto, ['name', 'slug', 'isVisible', 'showInMenu']);
-    await this.get(id);
+    const current = await this.get(id);
 
     if (dto.parentId) {
       const index = await this.loadIndex();
@@ -123,16 +140,24 @@ export class CategoriesService {
             (prefix) => this.takenSlugs(prefix, id),
           );
 
-    return this.prisma.category.update({
-      where: { id },
-      data: definedOnly({ ...dto, slug }),
+    const slugChanged = slug !== undefined && slug !== current.slug;
+    const category = await this.prisma.$transaction(async (tx) => {
+      const updated = await tx.category.update({
+        where: { id },
+        data: definedOnly({ ...dto, slug }),
+      });
+      if (slugChanged) await this.redirects.recordSlugChange(tx, 'category', current.slug, slug);
+      return updated;
     });
+    this.notify(current.slug, slugChanged ? slug : undefined);
+    if (slugChanged) void this.revalidation.notify([CacheTags.redirects]);
+    return category;
   }
 
   async remove(id: string) {
     const category = await this.prisma.category.findUnique({
       where: { id },
-      select: { _count: { select: { children: true, products: true } } },
+      select: { slug: true, _count: { select: { children: true, products: true } } },
     });
     if (!category) throw new NotFoundException('Category not found');
 
@@ -154,6 +179,7 @@ export class CategoriesService {
       }),
       this.prisma.category.delete({ where: { id } }),
     ]);
+    this.notify(category.slug);
     return { deleted: true };
   }
 
@@ -167,6 +193,7 @@ export class CategoriesService {
         this.prisma.category.update({ where: { id }, data: { sortOrder } }),
       ),
     );
+    this.notify();
     return { reordered: ids.length };
   }
 

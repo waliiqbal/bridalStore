@@ -691,3 +691,17 @@ model StoreSettings {
   googleAnalyticsId String?
   updatedAt         DateTime @updatedAt
 }
+
+// ───────────────────────── Redirects ─────────────────────────
+// Created automatically when a slug changes, so old links and search results keep working.
+
+model Redirect {
+  id         String   @id @default(cuid())
+  fromPath   String   @unique // "/products/old-slug"
+  toPath     String // "/products/new-slug"
+  statusCode Int      @default(301)
+  createdAt  DateTime @default(now())
+
+  // Used to repoint older redirects when a path moves again (no chains)
+  @@index([toPath])
+}
