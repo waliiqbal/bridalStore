@@ -48,6 +48,13 @@ export class AllExceptionsFilter implements ExceptionFilter {
           error: statusName(HttpStatus.CONFLICT),
         };
       }
+      if (exception.code === 'P2003') {
+        return {
+          statusCode: HttpStatus.BAD_REQUEST,
+          message: 'This refers to a record that does not exist',
+          error: statusName(HttpStatus.BAD_REQUEST),
+        };
+      }
       if (exception.code === 'P2025') {
         return {
           statusCode: HttpStatus.NOT_FOUND,

@@ -1,29 +1,33 @@
-import { Test, TestingModule } from '@nestjs/testing';
-import { INestApplication } from '@nestjs/common';
+import type { INestApplication } from '@nestjs/common';
 import request from 'supertest';
-import { App } from 'supertest/types';
-import { AppModule } from './../src/app.module.js';
+import { createTestApp, loginAsAdmin } from './helpers/app.js';
 
-describe('AppController (e2e)', () => {
-  let app: INestApplication<App>;
+describe('App (e2e)', () => {
+  let app: INestApplication;
 
-  beforeEach(async () => {
-    const moduleFixture: TestingModule = await Test.createTestingModule({
-      imports: [AppModule],
-    }).compile();
-
-    app = moduleFixture.createNestApplication();
-    await app.init();
+  beforeAll(async () => {
+    app = await createTestApp();
   });
 
-  it('/ (GET)', () => {
-    return request(app.getHttpServer())
-      .get('/')
-      .expect(200)
-      .expect('Hello World!');
-  });
-
-  afterEach(async () => {
+  afterAll(async () => {
     await app.close();
+  });
+
+  it('GET /api/health reports the database as connected', () => {
+    return request(app.getHttpServer())
+      .get('/api/health')
+      .expect(200)
+      .expect({ status: 'ok', database: 'connected' });
+  });
+
+  it('protects admin routes and accepts the seeded admin cookie', async () => {
+    await request(app.getHttpServer()).get('/api/admin/auth/me').expect(401);
+
+    const cookie = await loginAsAdmin(app);
+    const res = await request(app.getHttpServer())
+      .get('/api/admin/auth/me')
+      .set('Cookie', cookie)
+      .expect(200);
+    expect(res.body.admin.email).toBe(process.env.SEED_ADMIN_EMAIL);
   });
 });

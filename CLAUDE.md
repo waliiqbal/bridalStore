@@ -56,7 +56,7 @@ npm run format       # prettier --write src/**/*.ts test/**/*.ts
 npm run test         # vitest run (unit, *.spec.ts)
 npm run test:watch
 npm run test:cov
-npm run test:e2e     # vitest run --config ./vitest.config.e2e.ts (*.e2e-spec.ts)
+npm run test:e2e     # *.e2e-spec.ts against <db>_test (auto-created, migrated, seeded)
 
 # single test file
 npx vitest run src/path/to/file.spec.ts
@@ -159,6 +159,13 @@ Payment routing rule:
 - `main.ts` also registers cookie-parser, the global `ValidationPipe` and `AllExceptionsFilter` (`src/common/filters`). Env vars are validated at startup in `src/config/env.validation.ts`; add new required vars there and to `.env.example`.
 - `AdminGuard` is a global guard: every controller whose path starts with `admin` is protected automatically. Mark the rare public admin handler (e.g. login) with `@Public()`.
 - Seed with `npx prisma db seed` (`prisma/seed.ts`, run via tsx). Keep it re-runnable: upserts with `update: {}`.
+- `configureApp()` (`src/app.setup.ts`) holds prefix/pipes/filter/cookies; `main.ts` and e2e tests both use it. E2E tests use `test/helpers/app.ts` (`createTestApp`, `loginAsAdmin`).
+- Currency: `CurrencyService.resolve(code)` → `CurrencyContext` (`convert`, `toAudBounds`). All maths is integer (BigInt) in `pricing/currency-math.ts`; AUD is never rounded. Public price endpoints take `?currency=`.
+- Slugs: `common/slug` `resolveSlug()` for every entity (auto `-2`, `-3`; explicit slug that is taken → 409). Slugs don't change when a name changes.
+- Category tree: `CategoriesService.loadIndex()` loads the (small) table once for descendants, breadcrumbs and cycle checks. Never walk the tree with per-level queries.
+- Product cards: `PRODUCT_CARD_SELECT` + `toProductCard()` (`catalog/products/product-card.ts`). "Available" variant = `isActive && stock > 0` (`AVAILABLE_VARIANT`), used by card sizes and size/colour filters.
+- Collections: `buildCollectionWhere()` (`collections/collection-rules.ts`) is the only rules → `where` function; `buildFilterWhere(filters, exclude?)` builds storefront filters, and facet counts exclude their own group. Sorting, PRICE rules and price filters use `Product.price` (variant overrides apply only on the product page).
+- Tags are stored lowercase. Deleting a category/attribute value also deletes smart rules that point at it. Products/variants with order history are archived/deactivated, never deleted.
 - `main.ts` enables CORS for `FRONTEND_URL` (comma-separated list) with `credentials: true`.
 - ESM project (`"type": "module"`): imports use explicit `.js` extensions even in `.ts` files. Follow this for every new file.
 - The test runner is Vitest (not Jest), and linting is oxlint (not ESLint).
@@ -173,7 +180,7 @@ Each module lives in `src/modules/<name>/`:
 | `catalog` | Categories, products, variants, images, size guides, attributes |
 | `collections` | Collections, smart-rule → `where` builder, filter counts |
 | `cart` | Server-side cart, cookie token, add/update/remove, apply coupon |
-| `pricing` | Currency conversion, coupons, shipping, GST, totals (no controller) |
+| `pricing` | Currency conversion, coupons, shipping, GST, totals. Only controller: public read-only `GET /api/currencies` |
 | `checkout` | Validates the cart, creates the order, reserves stock |
 | `orders` | Customer order history, admin order list, status updates, tracking |
 | `payments` | `PaymentProvider` interface with `square`, `stripe` and `paypal` adapters, plus webhook controllers |

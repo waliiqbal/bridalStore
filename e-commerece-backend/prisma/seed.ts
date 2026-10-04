@@ -41,7 +41,8 @@ async function seedCurrencies() {
     await prisma.currency.upsert({
       where: { code: c.code },
       update: {},
-      create: { ...c, roundTo: 100 },
+      // AUD is the base currency and is never rounded; others round up to whole units.
+      create: { ...c, roundTo: c.code === 'AUD' ? 1 : 100 },
     });
   }
 }
