@@ -2,6 +2,7 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { paginate, toSkipTake, type PaginationQueryDto } from '../../common/pagination/pagination.js';
 import type { Prisma } from '../../generated/prisma/client.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
+import { PaymentConfigService } from '../payments/payment-config.service.js';
 import type { AdminOrderListQueryDto } from './dto/orders.dto.js';
 import { normalizeOrderNumber } from './order-rules.js';
 import {
@@ -18,7 +19,10 @@ const LOOKUP_NOT_FOUND = "We couldn't find an order with those details. Please c
 // Read side of orders: customer history, guest lookup and the admin list/detail.
 @Injectable()
 export class OrdersService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly payments: PaymentConfigService,
+  ) {}
 
   async listForCustomer(customerId: string, pagination: PaginationQueryDto) {
     const where = { customerId };
@@ -42,7 +46,7 @@ export class OrdersService {
       ? await this.prisma.order.findFirst({ where: { orderNumber: number, customerId }, select: ORDER_DETAIL_SELECT })
       : null;
     if (!row) throw new NotFoundException('Order not found');
-    return customerOrderView(row);
+    return customerOrderView(row, this.payments.available());
   }
 
   // One query either way, so "wrong email" and "no such order" look identical.
@@ -53,12 +57,13 @@ export class OrdersService {
       select: ORDER_DETAIL_SELECT,
     });
     if (!row) throw new NotFoundException(LOOKUP_NOT_FOUND);
-    return customerOrderView(row);
+    return customerOrderView(row, this.payments.available());
   }
 
   async adminList(query: AdminOrderListQueryDto) {
     const where: Prisma.OrderWhereInput = {};
     if (query.status) where.status = query.status;
+    if (query.needsAttention) where.attentionNote = { not: null };
     if (query.from || query.to) where.createdAt = { gte: query.from, lt: query.to };
     if (query.q) {
       const q = query.q;
@@ -80,13 +85,17 @@ export class OrdersService {
   async adminGet(id: string) {
     const row = await this.prisma.order.findUnique({ where: { id }, select: ORDER_DETAIL_SELECT });
     if (!row) throw new NotFoundException('Order not found');
-    return adminOrderView(row);
+    return adminOrderView(row, this.payments.available());
   }
 
-  async updateAdminNote(id: string, adminNote: string | null | undefined) {
+  async updateAdminNote(id: string, adminNote: string | null | undefined, resolveAttention?: boolean) {
     const { count } = await this.prisma.order.updateMany({
       where: { id },
-      data: { adminNote: adminNote?.trim() || null },
+      data: {
+        ...(adminNote !== undefined && { adminNote: adminNote?.trim() || null }),
+        // The owner has dealt with the flagged problem
+        ...(resolveAttention && { attentionNote: null }),
+      },
     });
     if (!count) throw new NotFoundException('Order not found');
     return this.adminGet(id);

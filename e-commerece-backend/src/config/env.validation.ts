@@ -1,3 +1,5 @@
+import { parsePaymentsEnv, type PaymentsEnv } from './payments-env.js';
+
 export interface S3Env {
   bucket: string;
   region: string;
@@ -24,6 +26,7 @@ export interface Env {
   TRUST_PROXY: number;
   // Background jobs (expired reservations, old carts). Off in tests.
   SCHEDULER_ENABLED: boolean;
+  PAYMENTS: PaymentsEnv;
   STORAGE_DRIVER: 'local' | 's3';
   UPLOADS_DIR: string;
   UPLOADS_PUBLIC_URL: string;
@@ -145,6 +148,9 @@ export function validateEnv(raw: Record<string, unknown>): Env {
 
   const frontendUrl = str('FRONTEND_URL') || 'http://localhost:3001';
 
+  // ── Payments (Stripe, Square, PayPal) ──
+  const payments = parsePaymentsEnv(str, nodeEnv, errors);
+
   if (errors.length > 0) {
     throw new Error(
       `Invalid environment configuration (check your .env file):\n  - ${errors.join('\n  - ')}`,
@@ -165,6 +171,7 @@ export function validateEnv(raw: Record<string, unknown>): Env {
     MAIL_FROM: mailFrom,
     TRUST_PROXY: trustProxy,
     SCHEDULER_ENABLED: schedulerRaw === 'true',
+    PAYMENTS: payments,
     STORAGE_DRIVER: storageDriver as Env['STORAGE_DRIVER'],
     UPLOADS_DIR: str('UPLOADS_DIR') || 'uploads',
     UPLOADS_PUBLIC_URL: uploadsPublicUrl,

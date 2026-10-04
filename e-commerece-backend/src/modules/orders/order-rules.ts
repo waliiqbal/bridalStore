@@ -18,8 +18,9 @@ const TRANSITIONS: Record<StatusActor, Partial<Record<OrderStatus, OrderStatus[]
   },
   payment: {
     PENDING_PAYMENT: ['PROCESSING'],
-    // A late payment can revive an order whose hold expired (stock permitting)
-    CANCELLED: ['PROCESSING'],
+    // A late payment can revive an order whose hold expired (stock permitting);
+    // a cancelled paid order becomes REFUNDED once its money is returned
+    CANCELLED: ['PROCESSING', 'REFUNDED'],
     PROCESSING: ['REFUNDED'],
     SHIPPED: ['REFUNDED'],
     DELIVERED: ['REFUNDED'],

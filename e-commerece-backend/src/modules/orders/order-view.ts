@@ -1,5 +1,5 @@
 import { money, type Money } from '../../common/money/money.js';
-import type { Prisma } from '../../generated/prisma/client.js';
+import type { PaymentProvider, Prisma } from '../../generated/prisma/client.js';
 import { nextStatusesForAdmin, paymentMethodsFor, STATUS_LABELS } from './order-rules.js';
 
 export const ORDER_DETAIL_SELECT = {
@@ -29,6 +29,7 @@ export const ORDER_DETAIL_SELECT = {
   trackingUrl: true,
   customerNote: true,
   adminNote: true,
+  attentionNote: true,
   reservationExpiresAt: true,
   placedAt: true,
   shippedAt: true,
@@ -62,8 +63,23 @@ export const ORDER_DETAIL_SELECT = {
       amount: true,
       currencyCode: true,
       providerPaymentId: true,
+      providerCaptureId: true,
       errorMessage: true,
       createdAt: true,
+      refunds: {
+        select: {
+          id: true,
+          amount: true,
+          currencyCode: true,
+          reason: true,
+          status: true,
+          providerRefundId: true,
+          createdBy: true,
+          errorMessage: true,
+          createdAt: true,
+        },
+        orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
+      },
     },
     orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
   },
@@ -107,7 +123,8 @@ export function orderSummary(row: OrderSummaryRow) {
   };
 }
 
-function baseView(row: OrderDetailRow) {
+// availableMethods: providers configured on this server (PaymentConfigService)
+function baseView(row: OrderDetailRow, availableMethods: PaymentProvider[]) {
   const m = (amount: number): Money => money(amount, row.currencyCode);
   const pending = row.status === 'PENDING_PAYMENT';
   return {
@@ -158,29 +175,41 @@ function baseView(row: OrderDetailRow) {
     createdAt: row.createdAt,
     // Only while waiting for payment
     payment: pending
-      ? { methods: paymentMethodsFor(row.currencyCode), expiresAt: row.reservationExpiresAt }
+      ? {
+          methods: paymentMethodsFor(row.currencyCode).filter((m) => availableMethods.includes(m)),
+          expiresAt: row.reservationExpiresAt,
+        }
       : null,
   };
 }
 
 // What shoppers see: no internal notes, payment details or who changed what.
-export function customerOrderView(row: OrderDetailRow) {
+export function customerOrderView(row: OrderDetailRow, availableMethods: PaymentProvider[]) {
   return {
-    ...baseView(row),
+    ...baseView(row, availableMethods),
     timeline: row.statusHistory
       .filter((h) => h.from !== h.to)
       .map((h) => ({ status: h.to, label: STATUS_LABELS[h.to], at: h.createdAt })),
   };
 }
 
-export function adminOrderView(row: OrderDetailRow) {
+export function adminOrderView(row: OrderDetailRow, availableMethods: PaymentProvider[]) {
   const { customer } = row;
+  const paid = row.payments.filter((p) => p.status === 'SUCCEEDED' || p.status === 'REFUNDED');
+  const refundable = paid.reduce(
+    (sum, p) => sum + p.amount - p.refunds.filter((r) => r.status !== 'FAILED').reduce((s, r) => s + r.amount, 0),
+    0,
+  );
   return {
     id: row.id,
-    ...baseView(row),
+    ...baseView(row, availableMethods),
     totalAud: money(row.totalAud, 'AUD'),
     exchangeRate: row.exchangeRate.toFixed(6),
     adminNote: row.adminNote,
+    // Something the owner should look at (mismatched payment, automatic refund...)
+    attentionNote: row.attentionNote,
+    // Most that can still be refunded (for the refund form)
+    refundable: money(Math.max(0, refundable), row.currencyCode),
     reservationExpiresAt: row.reservationExpiresAt,
     // Buttons to show for the next step
     nextStatuses: nextStatusesForAdmin(row.status).map((status) => ({ status, label: STATUS_LABELS[status] })),
@@ -192,7 +221,11 @@ export function adminOrderView(row: OrderDetailRow) {
       changedBy: h.changedBy,
       at: h.createdAt,
     })),
-    payments: row.payments.map((p) => ({ ...p, amount: money(p.amount, p.currencyCode) })),
+    payments: row.payments.map((p) => ({
+      ...p,
+      amount: money(p.amount, p.currencyCode),
+      refunds: p.refunds.map((r) => ({ ...r, amount: money(r.amount, r.currencyCode) })),
+    })),
     customer: customer
       ? {
           id: customer.id,

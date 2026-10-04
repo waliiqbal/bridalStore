@@ -37,6 +37,6 @@ export class OrdersAdminController {
 
   @Patch(':id')
   update(@Param('id') id: string, @Body() dto: UpdateOrderDto) {
-    return this.orders.updateAdminNote(id, dto.adminNote);
+    return this.orders.updateAdminNote(id, dto.adminNote, dto.resolveAttention);
   }
 }

@@ -24,7 +24,8 @@ export interface PaymentInfo {
   // Cents in the order currency
   amount: number;
   currencyCode: string;
-  rawResponse?: Prisma.InputJsonValue;
+  // PayPal capture ID (needed for refunds)
+  captureId?: string | null;
 }
 
 /**
@@ -70,6 +71,9 @@ export class OrderLifecycleService {
     const reserved: StockLine[] = [];
 
     const result = await this.prisma.$transaction(async (tx) => {
+      // Serializes concurrent calls for the same order (webhook + confirm racing),
+      // so the second one sees the first one's result instead of a "second payment".
+      await tx.$queryRaw`SELECT "id" FROM "Order" WHERE "id" = ${orderId} FOR UPDATE`;
       const order = await tx.order.findUnique({ where: { id: orderId }, select: ORDER_STOCK_SELECT });
       if (!order) throw new NotFoundException('Order not found');
       const done = (outcome: MarkPaidOutcome) => ({ outcome, orderNumber: order.orderNumber });
@@ -284,6 +288,7 @@ export class OrderLifecycleService {
     return last?.changedBy === CHANGED_BY.reservationExpired;
   }
 
+  // Only IDs, status and amounts are stored — never provider payloads or card data.
   private recordPayment(tx: Tx, orderId: string, payment: PaymentInfo, status: 'SUCCEEDED' | 'FAILED', errorMessage?: string) {
     return tx.payment.upsert({
       where: { providerPaymentId: payment.providerPaymentId },
@@ -291,13 +296,19 @@ export class OrderLifecycleService {
         orderId,
         provider: payment.provider,
         providerPaymentId: payment.providerPaymentId,
+        providerCaptureId: payment.captureId ?? null,
         amount: payment.amount,
         currencyCode: payment.currencyCode,
         status,
-        rawResponse: payment.rawResponse,
         errorMessage: errorMessage ?? null,
       },
-      update: { status, errorMessage: errorMessage ?? null },
+      update: {
+        status,
+        errorMessage: errorMessage ?? null,
+        // A failed attempt keeps its own amount; a success records what was paid
+        ...(status === 'SUCCEEDED' && { amount: payment.amount, currencyCode: payment.currencyCode }),
+        ...(payment.captureId && { providerCaptureId: payment.captureId }),
+      },
     });
   }
 

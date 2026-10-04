@@ -41,6 +41,12 @@ enum PaymentStatus {
   REFUNDED
 }
 
+enum RefundStatus {
+  PENDING
+  SUCCEEDED
+  FAILED
+}
+
 enum CouponType {
   PERCENTAGE
   FIXED_AMOUNT
@@ -531,6 +537,8 @@ model Order {
   trackingUrl          String?
   customerNote         String?
   adminNote            String?
+  // Set when something needs the owner: amount mismatch, automatic refund, refund failure
+  attentionNote        String?
 
   items         OrderItem[]
   payments      Payment[]
@@ -547,6 +555,7 @@ model Order {
   @@index([email])
   @@index([status, reservationExpiresAt])
   @@index([cartId])
+  @@index([attentionNote])
 }
 
 model OrderItem {
@@ -591,12 +600,52 @@ model Payment {
   currencyCode      String
   // ID from Square / Stripe / PayPal, used for webhooks and refunds
   providerPaymentId String?         @unique
+  // PayPal: the capture ID (refunds and capture webhooks use it); providerPaymentId = PayPal order ID
+  providerCaptureId String?         @unique
+  // Our idempotency key sent to the provider for this attempt
+  idempotencyKey    String?         @unique
+  // Minimal summary only (IDs, status, amounts) — never full provider payloads
   rawResponse       Json?
+  refunds           Refund[]
   errorMessage      String?
   createdAt         DateTime        @default(now())
   updatedAt         DateTime        @updatedAt
 
   @@index([orderId])
+}
+
+// Full or partial refunds of a payment. A PENDING refund already counts
+// against what can still be refunded.
+model Refund {
+  id               String       @id @default(cuid())
+  paymentId        String
+  payment          Payment      @relation(fields: [paymentId], references: [id], onDelete: Cascade)
+  amount           Int // cents, in currencyCode
+  currencyCode     String
+  reason           String
+  status           RefundStatus @default(PENDING)
+  providerRefundId String?      @unique
+  idempotencyKey   String       @unique
+  // Admin email or "system:auto-refund"
+  createdBy        String
+  errorMessage     String?
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
+
+  @@index([paymentId])
+}
+
+// Every provider webhook we processed, so a repeated delivery is ignored.
+model WebhookEvent {
+  id          String          @id @default(cuid())
+  provider    PaymentProvider
+  eventId     String
+  type        String
+  receivedAt  DateTime        @default(now())
+  processedAt DateTime?
+  error       String?
+
+  @@unique([provider, eventId])
 }
 
 // ───────────────────────── Content ─────────────────────────

@@ -17,6 +17,8 @@ import { ContentModule } from './modules/content/content.module.js';
 import { CustomersModule } from './modules/customers/customers.module.js';
 import { MailModule } from './modules/mail/mail.module.js';
 import { OrdersModule } from './modules/orders/orders.module.js';
+import { PaymentConfigModule } from './modules/payments/payment-config.service.js';
+import { PaymentsModule } from './modules/payments/payments.module.js';
 import { PricingModule } from './modules/pricing/pricing.module.js';
 import { RedirectsModule } from './modules/redirects/redirects.module.js';
 import { RevalidationModule } from './modules/revalidation/revalidation.module.js';
@@ -33,6 +35,7 @@ import { PrismaModule } from './prisma/prisma.module.js';
     ThrottlerModule.forRoot({ throttlers: [{ name: 'default', ttl: 60_000, limit: 120 }] }),
     RevalidationModule,
     MailModule,
+    PaymentConfigModule,
     AuthModule,
     PricingModule,
     CatalogModule,
@@ -47,6 +50,7 @@ import { PrismaModule } from './prisma/prisma.module.js';
     OrdersModule,
     CheckoutModule,
     SchedulerModule,
+    PaymentsModule,
   ],
   controllers: [AppController, HealthController],
   // CSRF check for every state-changing request (X-Requested-With header)

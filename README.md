@@ -60,6 +60,8 @@ Backend (`e-commerece-backend/.env`):
 | `MAIL_DRIVER` / `MAIL_FROM` | `console` | `console` prints emails (password reset links) to the server log |
 | `TRUST_PROXY` | `0` | Number of proxies in front of the API, so rate limits see real client IPs |
 | `SCHEDULER_ENABLED` | `true` | Background jobs: release unpaid orders after 30 minutes, delete old carts |
+| `PAYMENTS_DRIVER` | `live` | `fake` = in-memory providers for automated tests only (refused in production) |
+| `STRIPE_*`, `SQUARE_*`, `PAYPAL_*` | empty | Payment providers. Each is optional; an unconfigured provider is simply not offered. See the checklist below |
 | `STORAGE_DRIVER`, `UPLOADS_*`, `S3_*` | `local` | Where uploaded images are stored (see `.env.example`) |
 | `FRONTEND_REVALIDATE_URL` / `REVALIDATE_SECRET` | empty | Lets the API refresh the storefront cache after admin changes |
 
@@ -129,3 +131,45 @@ The work is at an early stage:
 - The backend uses **Vitest**, not Jest, and **oxlint**, not ESLint.
 - Running `next dev` regenerates `e-commerece-frontend/AGENTS.md`. Commit the file as it is; don't delete it.
 - For AI-assisted development, see [`CLAUDE.md`](CLAUDE.md).
+
+## Payments sandbox checklist
+
+Use sandbox/test keys locally (the API refuses live keys unless `NODE_ENV=production`, and test keys in production). Routing: **AUD orders → Square or PayPal; other currencies → Stripe or PayPal.** After changing `.env`, restart the API.
+
+Square and PayPal webhooks need a public HTTPS URL. Locally, expose the API with a tunnel (for example `ngrok http 3000`) and use `https://<your-tunnel>/api/webhooks/<provider>`.
+
+### Stripe (non-AUD orders)
+
+1. In the Stripe Dashboard (test mode), copy the keys into `STRIPE_SECRET_KEY` (`sk_test_…`) and `STRIPE_PUBLISHABLE_KEY` (`pk_test_…`).
+2. Forward webhooks with the Stripe CLI:
+   ```bash
+   stripe login
+   stripe listen --forward-to localhost:3000/api/webhooks/stripe
+   ```
+   Put the printed `whsec_…` secret in `STRIPE_WEBHOOK_SECRET` and restart the API.
+3. Check out in USD (or another non-AUD currency) and pay with:
+   - `4242 4242 4242 4242`: succeeds
+   - `4000 0000 0000 0002`: declined
+   - `4000 0025 0000 3155`: asks for 3D Secure
+   Use any future expiry date and any 3-digit CVC. The order should move to **Being prepared** once the `payment_intent.succeeded` webhook arrives (watch the `stripe listen` output).
+4. Refund from admin; the `refund.updated` webhook confirms it.
+
+### Square (AUD orders)
+
+1. In the Square Developer Console, open your app and switch to **Sandbox**. Copy the sandbox access token (`SQUARE_ACCESS_TOKEN`), application ID (`sandbox-sq0idb-…`, `SQUARE_APPLICATION_ID`) and a location ID (`SQUARE_LOCATION_ID`). Keep `SQUARE_ENVIRONMENT=sandbox`.
+2. Under **Webhooks**, add a subscription with the URL `https://<your-tunnel>/api/webhooks/square` and the events `payment.created`, `payment.updated`, `refund.created`, `refund.updated` and `dispute.created`. Copy its signature key into `SQUARE_WEBHOOK_SIGNATURE_KEY`, and put **exactly the same URL** in `SQUARE_WEBHOOK_URL`, because the URL is part of the signature.
+3. Check out in AUD and pay with card `4111 1111 1111 1111`, CVV `111` and any future expiry date. To test failures, use CVV `911` (CVV rejected), postal code `99999`, expiry `01/40`, or card `4000 0000 0000 0002` (declined).
+4. Refund from admin; Square's `refund.updated` webhook completes it.
+
+### PayPal (all currencies)
+
+1. At developer.paypal.com → **Apps & Credentials** (Sandbox), create an app and copy its client ID and secret (`PAYPAL_CLIENT_ID`, `PAYPAL_CLIENT_SECRET`). Keep `PAYPAL_ENVIRONMENT=sandbox`.
+2. In the app's **Webhooks** section, add `https://<your-tunnel>/api/webhooks/paypal` with the events `PAYMENT.CAPTURE.COMPLETED`, `PAYMENT.CAPTURE.DENIED`, `PAYMENT.CAPTURE.DECLINED`, `PAYMENT.CAPTURE.PENDING`, `PAYMENT.CAPTURE.REFUNDED`, `PAYMENT.CAPTURE.REVERSED`, `PAYMENT.REFUND.PENDING` and `PAYMENT.REFUND.FAILED`. Copy the webhook ID into `PAYPAL_WEBHOOK_ID`.
+3. Under **Sandbox accounts**, use the default *personal* (buyer) account to log in at the PayPal popup and approve the payment. The API captures it on the server.
+
+### What to check each time
+
+- The order shows **Being prepared**, the bag is empty, and the admin order shows the payment with its provider ID.
+- Paying the same order twice (for example in two tabs) refunds the second payment automatically and flags the order in admin (**Needs attention**).
+- Partial and full refunds from admin appear in the order history; a full refund marks the order **Refunded**.
+- Redelivering a webhook from the provider's dashboard changes nothing.

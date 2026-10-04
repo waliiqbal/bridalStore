@@ -19,6 +19,8 @@ export default defineConfig({
       NODE_ENV: 'test',
       // Tests call the jobs directly instead
       SCHEDULER_ENABLED: 'false',
+      // In-memory providers with signed fake webhooks (never in production)
+      PAYMENTS_DRIVER: 'fake',
       STORAGE_DRIVER: 'local',
       UPLOADS_DIR: join(tmpdir(), 'mbs-e2e-uploads'),
       UPLOADS_PUBLIC_URL: 'http://localhost:3000/uploads',

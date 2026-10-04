@@ -1,5 +1,6 @@
 import { Transform, Type } from 'class-transformer';
 import {
+  IsBoolean,
   IsDate,
   IsEmail,
   IsEnum,
@@ -40,6 +41,12 @@ export class AdminOrderListQueryDto extends PaginationQueryDto {
   @IsDate()
   to?: Date;
 
+  // Only orders flagged for the owner (payment problems, automatic refunds)
+  @IsOptional()
+  @Transform(({ value }: { value: unknown }) => value === true || value === 'true' || value === '1')
+  @IsBoolean()
+  needsAttention?: boolean;
+
   // Order number, email or name
   @IsOptional()
   @IsString()
@@ -76,4 +83,9 @@ export class UpdateOrderDto {
   @IsString()
   @MaxLength(5000)
   adminNote?: string | null;
+
+  // true = the problem in attentionNote has been dealt with
+  @IsOptional()
+  @IsBoolean()
+  resolveAttention?: boolean;
 }

@@ -6,10 +6,11 @@ import type { CustomerProfile } from '../auth/customer/customer-session.js';
 import { buildCartView, pricingLines, type CartRow } from '../cart/cart-view.js';
 import { CartService, type CartContext } from '../cart/cart.service.js';
 import { OrderLifecycleService } from '../orders/order-lifecycle.service.js';
-import { CHANGED_BY, formatOrderNumber, paymentMethodsFor, reservationExpiry } from '../orders/order-rules.js';
+import { CHANGED_BY, formatOrderNumber, reservationExpiry } from '../orders/order-rules.js';
 import { customerOrderView, ORDER_DETAIL_SELECT } from '../orders/order-view.js';
 import { availabilityChanged, reserveStock } from '../orders/stock.js';
 import { shippingOptionsFor, type PricingResult } from '../pricing/pricing.js';
+import { PaymentConfigService } from '../payments/payment-config.service.js';
 import { PricingService, type PricingContext } from '../pricing/pricing.service.js';
 import type { CheckoutDto } from './dto/checkout.dto.js';
 
@@ -70,6 +71,7 @@ export class CheckoutService {
     private readonly carts: CartService,
     private readonly pricing: PricingService,
     private readonly lifecycle: OrderLifecycleService,
+    private readonly paymentConfig: PaymentConfigService,
   ) {}
 
   /** Final breakdown and every problem, without creating anything. */
@@ -260,7 +262,10 @@ export class CheckoutService {
 
   private async orderResponse(orderId: string) {
     const row = await this.prisma.order.findUniqueOrThrow({ where: { id: orderId }, select: ORDER_DETAIL_SELECT });
-    return { order: customerOrderView(row), paymentMethods: paymentMethodsFor(row.currencyCode) };
+    return {
+      order: customerOrderView(row, this.paymentConfig.available()),
+      paymentMethods: this.paymentConfig.methodsFor(row.currencyCode),
+    };
   }
 
   private async prepare(db: Db, ctx: CartContext, dto: CheckoutDto, customer?: CustomerProfile): Promise<Prepared> {
@@ -339,7 +344,8 @@ export class CheckoutService {
       ...buildCartView(cart, pricing, pricingCtx),
       problems,
       canPlaceOrder: problems.length === 0,
-      paymentMethods: paymentMethodsFor(pricing.currencyCode),
+      // Only methods configured on this server
+      paymentMethods: this.paymentConfig.methodsFor(pricing.currencyCode),
       // Choices for the shipping step, already priced for this bag
       shippingOptions: shippingOptionsFor(pricingCtx.zone?.rates ?? [], pricingCtx.currency.rate, pricing),
     };
