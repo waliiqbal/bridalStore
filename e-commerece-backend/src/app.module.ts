@@ -10,14 +10,18 @@ import { HealthController } from './health/health.controller.js';
 import { AccountModule } from './modules/account/account.module.js';
 import { AuthModule } from './modules/auth/auth.module.js';
 import { CartModule } from './modules/cart/cart.module.js';
+import { CheckoutModule } from './modules/checkout/checkout.module.js';
 import { CatalogModule } from './modules/catalog/catalog.module.js';
 import { CollectionsModule } from './modules/collections/collections.module.js';
 import { ContentModule } from './modules/content/content.module.js';
 import { CustomersModule } from './modules/customers/customers.module.js';
 import { MailModule } from './modules/mail/mail.module.js';
+import { OrdersModule } from './modules/orders/orders.module.js';
 import { PricingModule } from './modules/pricing/pricing.module.js';
 import { RedirectsModule } from './modules/redirects/redirects.module.js';
 import { RevalidationModule } from './modules/revalidation/revalidation.module.js';
+import { SchedulerModule } from './modules/scheduler/scheduler.module.js';
+import { ShippingModule } from './modules/shipping/shipping.module.js';
 import { UploadsModule } from './modules/uploads/uploads.module.js';
 import { PrismaModule } from './prisma/prisma.module.js';
 
@@ -39,6 +43,10 @@ import { PrismaModule } from './prisma/prisma.module.js';
     CartModule,
     AccountModule,
     CustomersModule,
+    ShippingModule,
+    OrdersModule,
+    CheckoutModule,
+    SchedulerModule,
   ],
   controllers: [AppController, HealthController],
   // CSRF check for every state-changing request (X-Requested-With header)

@@ -59,6 +59,7 @@ Backend (`e-commerece-backend/.env`):
 | `CUSTOMER_SESSION_DAYS` | `30` | How long a customer stays logged in |
 | `MAIL_DRIVER` / `MAIL_FROM` | `console` | `console` prints emails (password reset links) to the server log |
 | `TRUST_PROXY` | `0` | Number of proxies in front of the API, so rate limits see real client IPs |
+| `SCHEDULER_ENABLED` | `true` | Background jobs: release unpaid orders after 30 minutes, delete old carts |
 | `STORAGE_DRIVER`, `UPLOADS_*`, `S3_*` | `local` | Where uploaded images are stored (see `.env.example`) |
 | `FRONTEND_REVALIDATE_URL` / `REVALIDATE_SECRET` | empty | Lets the API refresh the storefront cache after admin changes |
 

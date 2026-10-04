@@ -17,6 +17,8 @@ export default defineConfig({
     env: {
       DATABASE_URL: databaseUrl,
       NODE_ENV: 'test',
+      // Tests call the jobs directly instead
+      SCHEDULER_ENABLED: 'false',
       STORAGE_DRIVER: 'local',
       UPLOADS_DIR: join(tmpdir(), 'mbs-e2e-uploads'),
       UPLOADS_PUBLIC_URL: 'http://localhost:3000/uploads',

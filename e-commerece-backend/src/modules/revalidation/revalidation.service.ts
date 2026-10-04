@@ -18,6 +18,7 @@ export const CacheTags = {
   faqs: 'faqs',
   settings: 'settings',
   redirects: 'redirects',
+  currencies: 'currencies',
 } as const;
 
 const TIMEOUT_MS = 5000;

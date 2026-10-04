@@ -22,6 +22,8 @@ export interface Env {
   MAIL_FROM: string;
   // Number of trusted reverse proxies in front of the API (for client IPs)
   TRUST_PROXY: number;
+  // Background jobs (expired reservations, old carts). Off in tests.
+  SCHEDULER_ENABLED: boolean;
   STORAGE_DRIVER: 'local' | 's3';
   UPLOADS_DIR: string;
   UPLOADS_PUBLIC_URL: string;
@@ -88,6 +90,9 @@ export function validateEnv(raw: Record<string, unknown>): Env {
     errors.push(`MAIL_DRIVER must be one of: ${MAIL_DRIVERS.join(', ')}`);
   }
   const mailFrom = str('MAIL_FROM') || 'Malikah Bridal Studio <hello@example.com>';
+
+  const schedulerRaw = (str('SCHEDULER_ENABLED') || 'true').toLowerCase();
+  if (!['true', 'false'].includes(schedulerRaw)) errors.push('SCHEDULER_ENABLED must be true or false');
 
   const trustProxy = Number(str('TRUST_PROXY') || 0);
   if (!Number.isInteger(trustProxy) || trustProxy < 0) {
@@ -159,6 +164,7 @@ export function validateEnv(raw: Record<string, unknown>): Env {
     MAIL_DRIVER: mailDriver as Env['MAIL_DRIVER'],
     MAIL_FROM: mailFrom,
     TRUST_PROXY: trustProxy,
+    SCHEDULER_ENABLED: schedulerRaw === 'true',
     STORAGE_DRIVER: storageDriver as Env['STORAGE_DRIVER'],
     UPLOADS_DIR: str('UPLOADS_DIR') || 'uploads',
     UPLOADS_PUBLIC_URL: uploadsPublicUrl,

@@ -13,6 +13,8 @@ interface ErrorBody {
   statusCode: number;
   message: string | string[];
   error: string;
+  // Extra details some endpoints add, e.g. checkout "problems"
+  [key: string]: unknown;
 }
 
 @Catch()
@@ -32,12 +34,15 @@ export class AllExceptionsFilter implements ExceptionFilter {
     if (exception instanceof HttpException) {
       const statusCode = exception.getStatus();
       const response = exception.getResponse();
-      const message =
-        typeof response === 'string'
-          ? response
-          : ((response as { message?: string | string[] }).message ??
-            exception.message);
-      return { statusCode, message, error: statusName(statusCode) };
+      if (typeof response === 'string') {
+        return { statusCode, message: response, error: statusName(statusCode) };
+      }
+      const { message, statusCode: _s, error: _e, ...extra } = response as {
+        message?: string | string[];
+        statusCode?: number;
+        error?: string;
+      } & Record<string, unknown>;
+      return { ...extra, statusCode, message: message ?? exception.message, error: statusName(statusCode) };
     }
 
     if (exception instanceof Prisma.PrismaClientKnownRequestError) {

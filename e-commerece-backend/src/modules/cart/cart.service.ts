@@ -1,9 +1,14 @@
 import { randomBytes } from 'node:crypto';
-import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { DAY_MS } from '../../common/cookies.js';
 import type { Prisma } from '../../generated/prisma/client.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
-import { CurrencyService, type CurrencyContext } from '../pricing/currency.service.js';
+import { normalizeCouponCode, PricingService } from '../pricing/pricing.service.js';
 import {
   capNotice,
   capQuantity,
@@ -11,12 +16,25 @@ import {
   lineStatus,
   planCartMerge,
 } from './cart-rules.js';
-import { buildCartView, CART_VIEW_SELECT, type CartRow, type CartView } from './cart-view.js';
+import {
+  buildCartView,
+  CART_VIEW_SELECT,
+  pricingLines,
+  type CartRow,
+  type CartView,
+} from './cart-view.js';
 
 // Who is asking: the cart cookie token and/or the signed-in customer.
 export interface CartContext {
   token?: string;
   customerId?: string;
+}
+
+// Optional pricing inputs every cart response accepts.
+export interface CartPricingOptions {
+  currency?: string;
+  country?: string;
+  shippingRateId?: string;
 }
 
 // cartToken: string → set the cart cookie; null → clear it; undefined → leave it.
@@ -36,34 +54,41 @@ const REFRESH_AFTER_MS = DAY_MS;
 export class CartService {
   constructor(
     private readonly prisma: PrismaService,
-    private readonly currencies: CurrencyService,
+    private readonly pricing: PricingService,
   ) {}
 
   /**
-   * Fixed queries: cart (+ batched items/variants/products/images), currency
-   * when not AUD, and at most one small update (currency or expiry).
+   * Fixed queries: cart (+ batched items/variants/products/images), then the
+   * pricing context in parallel (currency, settings, zone + rates, coupon),
+   * and at most one small update (currency or expiry).
    */
-  async get(ctx: CartContext, currencyCode?: string): Promise<CartResult> {
-    const [row, requested] = await Promise.all([
-      this.findCart(this.prisma, ctx, CART_VIEW_SELECT),
-      currencyCode ? this.currencies.resolve(currencyCode) : null,
-    ]);
-    if (!row) return { cart: buildCartView(null, requested ?? (await this.currencies.resolve()), null) };
+  async get(ctx: CartContext, options: CartPricingOptions = {}): Promise<CartResult> {
+    const row = await this.loadCart(ctx);
+    const cart = await this.view(row, options);
 
-    const currency = requested ?? (await this.currencies.resolve(row.currencyCode));
-    const now = new Date();
-    const data: Prisma.CartUpdateInput = {};
-    if (requested && requested.code !== row.currencyCode) data.currencyCode = requested.code;
-    if (expiryFrom(now).getTime() - row.expiresAt.getTime() > REFRESH_AFTER_MS) {
-      data.expiresAt = expiryFrom(now);
+    if (row) {
+      const now = new Date();
+      const data: Prisma.CartUpdateInput = {};
+      if (options.currency && cart.currencyCode !== row.currencyCode) data.currencyCode = cart.currencyCode;
+      if (expiryFrom(now).getTime() - row.expiresAt.getTime() > REFRESH_AFTER_MS) data.expiresAt = expiryFrom(now);
+      if (Object.keys(data).length) {
+        await this.prisma.cart.update({ where: { id: row.id }, data, select: { id: true } });
+      }
     }
-    if (Object.keys(data).length) {
-      await this.prisma.cart.update({ where: { id: row.id }, data, select: { id: true } });
-    }
-    return { cart: buildCartView(row, currency) };
+    return { cart };
   }
 
-  async addItem(ctx: CartContext, variantId: string, quantity: number, currencyCode?: string): Promise<CartResult> {
+  // The cart with everything checkout and pricing need (or null).
+  loadCart(ctx: CartContext, db: PrismaService | Tx = this.prisma): Promise<CartRow | null> {
+    return this.findCart(db, ctx, CART_VIEW_SELECT);
+  }
+
+  async addItem(
+    ctx: CartContext,
+    variantId: string,
+    quantity: number,
+    options: CartPricingOptions = {},
+  ): Promise<CartResult> {
     const variant = await this.prisma.productVariant.findUnique({
       where: { id: variantId },
       select: { stock: true, isActive: true, product: { select: { status: true } } },
@@ -78,7 +103,7 @@ export class CartService {
     if (state.status === 'UNAVAILABLE') throw new ConflictException('This item is no longer available');
     if (state.status === 'OUT_OF_STOCK') throw new ConflictException('Sorry, this size is sold out');
 
-    const { cart, created, notice } = await this.prisma.$transaction(async (tx) => {
+    const { cart, notice } = await this.prisma.$transaction(async (tx) => {
       const target = await this.getOrCreateCart(tx, ctx);
       const existing = await tx.cartItem.findUnique({
         where: { cartId_variantId: { cartId: target.id, variantId } },
@@ -92,36 +117,66 @@ export class CartService {
         update: { quantity: stored },
       });
       await this.touch(tx, target.id);
-      return { cart: target, created: target.created, notice: capNotice(desired, stored, variant.stock) };
+      return { cart: target, notice: capNotice(desired, stored, variant.stock) };
     });
 
-    return this.respond(ctx.customerId ? { customerId: ctx.customerId } : { token: cart.token }, currencyCode, notice, created ? cart.token : undefined);
+    const owner = ctx.customerId ? { customerId: ctx.customerId } : { token: cart.token };
+    return this.respond(owner, options, notice, cart.created ? cart.token : undefined);
   }
 
-  async updateItem(ctx: CartContext, itemId: string, quantity: number, currencyCode?: string): Promise<CartResult> {
+  async updateItem(ctx: CartContext, itemId: string, quantity: number, options: CartPricingOptions = {}) {
     const item = await this.findOwnItem(ctx, itemId);
     const stored = capQuantity(quantity, item.variant.stock);
     await this.prisma.$transaction([
       this.prisma.cartItem.update({ where: { id: itemId }, data: { quantity: stored } }),
       this.prisma.cart.update({ where: { id: item.cartId }, data: { expiresAt: expiryFrom() } }),
     ]);
-    return this.respond(ctx, currencyCode, capNotice(quantity, stored, item.variant.stock));
+    return this.respond(ctx, options, capNotice(quantity, stored, item.variant.stock));
   }
 
-  async removeItem(ctx: CartContext, itemId: string, currencyCode?: string): Promise<CartResult> {
+  async removeItem(ctx: CartContext, itemId: string, options: CartPricingOptions = {}) {
     const item = await this.findOwnItem(ctx, itemId);
     await this.prisma.$transaction([
       this.prisma.cartItem.delete({ where: { id: itemId } }),
       this.prisma.cart.update({ where: { id: item.cartId }, data: { expiresAt: expiryFrom() } }),
     ]);
-    return this.respond(ctx, currencyCode, null);
+    return this.respond(ctx, options, null);
   }
 
   // Empties the bag by deleting the cart; the cookie is cleared too.
-  async clear(ctx: CartContext, currencyCode?: string): Promise<CartResult> {
+  async clear(ctx: CartContext, options: CartPricingOptions = {}): Promise<CartResult> {
     const cart = await this.findCart(this.prisma, ctx, { id: true });
     if (cart) await this.prisma.cart.delete({ where: { id: cart.id } });
-    return { cart: buildCartView(null, await this.currencies.resolve(currencyCode)), cartToken: null };
+    return { cart: await this.view(null, options), cartToken: null };
+  }
+
+  // One coupon per cart. An invalid code is rejected with the reason and not saved.
+  async applyCoupon(ctx: CartContext, code: string, options: CartPricingOptions = {}): Promise<CartResult> {
+    const row = await this.loadCart(ctx);
+    if (!row?.items.length) throw new BadRequestException('Add something to your bag before using a code');
+
+    const couponCode = normalizeCouponCode(code);
+    const pricingCtx = await this.pricing.loadContext({
+      currencyCode: options.currency ?? row.currencyCode,
+      country: options.country,
+      shippingRateId: options.shippingRateId,
+      couponCode,
+      estimateShipping: true,
+    });
+    const priced = this.pricing.calculate(pricingLines(row), pricingCtx);
+    if (!priced.coupon?.valid) throw new BadRequestException(priced.coupon?.message ?? 'This code is not valid');
+
+    await this.prisma.cart.update({
+      where: { id: row.id },
+      data: { couponCode: priced.coupon.code, expiresAt: expiryFrom() },
+    });
+    return this.respond(ctx, options, null);
+  }
+
+  async removeCoupon(ctx: CartContext, options: CartPricingOptions = {}): Promise<CartResult> {
+    const cart = await this.findCart(this.prisma, ctx, { id: true });
+    if (cart) await this.prisma.cart.update({ where: { id: cart.id }, data: { couponCode: null } });
+    return this.respond(ctx, options, null);
   }
 
   /**
@@ -134,9 +189,15 @@ export class CartService {
       const itemSelect = { select: { variantId: true, quantity: true } };
       const [guest, own] = await Promise.all([
         guestToken
-          ? tx.cart.findUnique({ where: { token: guestToken }, select: { id: true, token: true, customerId: true, items: itemSelect } })
+          ? tx.cart.findUnique({
+              where: { token: guestToken },
+              select: { id: true, token: true, customerId: true, couponCode: true, items: itemSelect },
+            })
           : null,
-        tx.cart.findUnique({ where: { customerId }, select: { id: true, token: true, items: itemSelect } }),
+        tx.cart.findUnique({
+          where: { customerId },
+          select: { id: true, token: true, couponCode: true, items: itemSelect },
+        }),
       ]);
       // Another customer's cart is never merged
       const usableGuest = guest && (!guest.customerId || guest.customerId === customerId) ? guest : null;
@@ -164,7 +225,11 @@ export class CartService {
         });
       }
       await tx.cart.delete({ where: { id: usableGuest.id } });
-      await tx.cart.update({ where: { id: own.id }, data: { expiresAt: expiryFrom() } });
+      await tx.cart.update({
+        where: { id: own.id },
+        // Keep the customer's coupon, or bring the guest's if they had none
+        data: { expiresAt: expiryFrom(), couponCode: own.couponCode ?? usableGuest.couponCode },
+      });
       return own.token;
     });
   }
@@ -175,15 +240,25 @@ export class CartService {
     return count;
   }
 
+  private async view(row: CartRow | null, options: CartPricingOptions, notice: string | null = null) {
+    const pricingCtx = await this.pricing.loadContext({
+      currencyCode: options.currency ?? row?.currencyCode,
+      country: options.country,
+      shippingRateId: options.shippingRateId,
+      couponCode: row?.couponCode,
+      estimateShipping: true,
+    });
+    return buildCartView(row, this.pricing.calculate(pricingLines(row), pricingCtx), pricingCtx, notice);
+  }
+
   private async respond(
     ctx: CartContext,
-    currencyCode: string | undefined,
+    options: CartPricingOptions,
     notice: string | null,
     cartToken?: string,
   ): Promise<CartResult> {
-    const row = await this.findCart(this.prisma, ctx, CART_VIEW_SELECT);
-    const currency: CurrencyContext = await this.currencies.resolve(currencyCode ?? row?.currencyCode);
-    return { cart: buildCartView(row as CartRow | null, currency, notice), cartToken };
+    const row = await this.loadCart(ctx);
+    return { cart: await this.view(row, options, notice), cartToken };
   }
 
   /**

@@ -1,4 +1,6 @@
 import { AUD_CONTEXT, CurrencyContext } from '../pricing/currency.service.js';
+import { calculatePricing } from '../pricing/pricing.js';
+import type { PricingContext } from '../pricing/pricing.service.js';
 import {
   capNotice,
   capQuantity,
@@ -6,7 +8,35 @@ import {
   MAX_QUANTITY_PER_LINE,
   planCartMerge,
 } from './cart-rules.js';
-import { buildCartView, type CartRow } from './cart-view.js';
+import { buildCartView, pricingLines, type CartRow } from './cart-view.js';
+
+// Prices a cart row the way CartService does (no country, no coupon).
+function view(row: CartRow | null, currency: CurrencyContext) {
+  const ctx: PricingContext = {
+    currency,
+    gstRatePercent: '10.00',
+    removeGstForExports: false,
+    country: null,
+    zone: null,
+    shippingRate: null,
+    shippingIsEstimate: false,
+    shippingProblem: null,
+    couponCode: null,
+    coupon: null,
+  };
+  const pricing = calculatePricing({
+    lines: pricingLines(row),
+    currency: currency.rate,
+    gstRatePercent: ctx.gstRatePercent,
+    removeGstForExports: false,
+    zone: null,
+    shippingRate: null,
+    couponCode: null,
+    coupon: null,
+    now: new Date('2026-10-04T00:00:00Z'),
+  });
+  return buildCartView(row, pricing, ctx);
+}
 
 describe('lineStatus', () => {
   const base = { productStatus: 'ACTIVE', variantActive: true, stock: 5, quantity: 2 };
@@ -127,50 +157,53 @@ describe('buildCartView', () => {
     },
   });
   const row = (items: ReturnType<typeof line>[]) =>
-    ({ id: 'cart', token: 't', customerId: null, currencyCode: 'AUD', expiresAt: new Date(), items }) as unknown as CartRow;
+    ({ id: 'cart', token: 't', customerId: null, currencyCode: 'AUD', couponCode: null, expiresAt: new Date(), items }) as unknown as CartRow;
 
   it('returns an empty cart shape with zero totals', () => {
-    const view = buildCartView(null, AUD_CONTEXT);
-    expect(view).toMatchObject({
+    expect(view(null, AUD_CONTEXT)).toMatchObject({
       id: null,
       items: [],
       itemCount: 0,
       canCheckout: false,
-      totals: { subtotal: { amount: 0, currencyCode: 'AUD' }, discount: null, shipping: null, tax: null },
+      coupon: null,
+      totals: { subtotal: { amount: 0, currencyCode: 'AUD' }, discount: { amount: 0 }, shipping: null, tax: null },
+      shipping: { country: null, available: null, rate: null },
     });
   });
 
   it('counts only OK lines in the subtotal and blocks checkout otherwise', () => {
-    const view = buildCartView(
+    const cart = view(
       row([line('ok', { quantity: 2 }), line('limited', { quantity: 4, stock: 1 }), line('gone', { status: 'ARCHIVED' })]),
       AUD_CONTEXT,
     );
-    expect(view.items.map((i) => [i.status, i.lineTotal.amount])).toEqual([
+    expect(cart.items.map((i) => [i.status, i.lineTotal.amount])).toEqual([
       ['OK', 20000],
       ['LIMITED', 40000],
       ['UNAVAILABLE', 10000],
     ]);
-    expect(view.totals.subtotal.amount).toBe(20000);
-    expect(view.itemCount).toBe(7);
-    expect(view.canCheckout).toBe(false);
-    expect(view.items[1].message).toBe('Only 1 left. Please reduce the quantity to continue.');
+    expect(cart.totals.subtotal.amount).toBe(20000);
+    expect(cart.itemCount).toBe(7);
+    expect(cart.canCheckout).toBe(false);
+    expect(cart.items[1].message).toBe('Only 1 left. Please reduce the quantity to continue.');
   });
 
   it('converts each unit price and multiplies (never converts the AUD total)', () => {
     const usd = new CurrencyContext({ code: 'USD', rateFromAud: '0.650000', roundTo: 100 });
     // 999 AUD cents → 649.35 → rounds up to 700 USD cents per unit
-    const view = buildCartView(row([line('a', { quantity: 3, price: 999 })]), usd);
-    expect(view.items[0].unitPrice).toEqual({ amount: 700, currencyCode: 'USD' });
-    expect(view.items[0].lineTotal).toEqual({ amount: 2100, currencyCode: 'USD' });
-    expect(view.totals.total).toEqual({ amount: 2100, currencyCode: 'USD' });
-    expect(view.canCheckout).toBe(true);
+    const cart = view(row([line('a', { quantity: 3, price: 999 })]), usd);
+    expect(cart.items[0].unitPrice).toEqual({ amount: 700, currencyCode: 'USD' });
+    expect(cart.items[0].lineTotal).toEqual({ amount: 2100, currencyCode: 'USD' });
+    expect(cart.totals.total).toEqual({ amount: 2100, currencyCode: 'USD' });
+    expect(cart.totals.totalAud).toEqual({ amount: 2997, currencyCode: 'AUD' });
+    expect(cart.tax.status).toBe('CALCULATED_AT_CHECKOUT');
+    expect(cart.canCheckout).toBe(true);
   });
 
   it('uses the variant price override and picks the image for the variant colour', () => {
-    const view = buildCartView(row([line('a', { price: 15000 })]), AUD_CONTEXT);
-    expect(view.items[0].unitPrice.amount).toBe(15000);
+    const cart = view(row([line('a', { price: 15000 })]), AUD_CONTEXT);
+    expect(cart.items[0].unitPrice.amount).toBe(15000);
     // compareAt (12000) is not higher than the variant price, so no "sale" price
-    expect(view.items[0].compareAtUnitPrice).toBeNull();
-    expect(view.items[0].product.imageUrl).toBe('https://x/mint.webp');
+    expect(cart.items[0].compareAtUnitPrice).toBeNull();
+    expect(cart.items[0].product.imageUrl).toBe('https://x/mint.webp');
   });
 });

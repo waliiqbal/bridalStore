@@ -177,7 +177,17 @@ Payment routing rule:
 - CSRF: `CsrfGuard` (global) rejects POST/PUT/PATCH/DELETE without an `X-Requested-With` header. Webhooks called by other servers use `@SkipCsrf()`. E2E tests use `api(app)` from `test/helpers/app.ts`, which adds it.
 - Rate limits (`@nestjs/throttler`, per IP, in memory): login 10/min (admin and customer), register 5/min, forgot-password 3/min. Only routes with `ThrottlerGuard` are limited. Set `TRUST_PROXY` behind a load balancer. With several API instances, switch to a Redis store.
 - Mail: inject `MAIL_SERVICE`. `MAIL_DRIVER=console` logs emails (with links) and keeps recent ones in memory for tests; the real provider comes in phase 7.
-- Cart (`cart/`): httpOnly `cart_token` cookie, 30 days sliding. One cart per customer (`Cart.customerId` unique); the guest cart is merged on login/register (`planCartMerge`). Every read recalculates from the database. Lines are never dropped: each has `status` `OK | LIMITED | OUT_OF_STOCK | UNAVAILABLE` and `availableQuantity`; only `OK` lines count towards the subtotal, and any other line sets `canCheckout: false`. Max 10 per line, capped by stock (`capQuantity`). **Line totals = convert(unit AUD price) × quantity** — checkout and orders must use the same rule. `totals.discount/shipping/tax` are `null` until phase 5.
+- Cart (`cart/`): httpOnly `cart_token` cookie, 30 days sliding. One cart per customer (`Cart.customerId` unique); the guest cart is merged on login/register (`planCartMerge`). Every read recalculates from the database. Lines are never dropped: each has `status` `OK | LIMITED | OUT_OF_STOCK | UNAVAILABLE` and `availableQuantity`; only `OK` lines count towards the subtotal, and any other line sets `canCheckout: false`. Max 10 per line, capped by stock (`capQuantity`). Every cart endpoint accepts `?currency=&country=&shippingRateId=` (without a rate, the zone's cheapest rate is used as an estimate, `shipping.isEstimate`). `POST/DELETE /api/cart/coupon`; an invalid code is rejected with its reason and never saved.
+- **Pricing (`pricing/pricing.ts` → `calculatePricing`) is the ONLY place totals are calculated.** It's pure (inputs incl. `now` passed in); `PricingService.loadContext()` loads currency, GST settings, zone + rates and coupon (pass the transaction client inside a transaction). Rules:
+  - Line unit price = `convertAudCents(unit AUD)` (same as listings); line total = unit × quantity; subtotal = sum of OK lines.
+  - Coupons: PERCENTAGE of the subtotal, rounded **down** to the currency's `roundTo`; FIXED_AMOUNT stored in AUD and converted; FREE_SHIPPING zeroes shipping; discount ≤ subtotal; one per cart. Validity uses the AUD subtotal for `minOrderAmount`; invalid → `coupon.valid=false` + `reason` + `message`.
+  - Shipping: rate price converted; free when AUD (subtotal − discount) ≥ `freeOverAmount`. Zone = the zone listing the country, else the fallback zone (`zoneForCountry`).
+  - GST is the portion included in the price, GST zones only: `round((goods after discount + shipping) × rate / (100 + rate))`, rate from `StoreSettings.gstRatePercent`. Unknown country → `tax.status = CALCULATED_AT_CHECKOUT`.
+  - `StoreSettings.removeGstForExports`: non-GST zones pay unit prices with GST removed (before conversion); shown as `gstRemovedForExport`.
+  - Everything is also computed in AUD (`totalAud`, thresholds). Invariant: total = subtotal − discount + shipping, all on the currency's `roundTo` step.
+- Checkout (`checkout/`): `POST /api/checkout/preview` returns the cart breakdown + `problems[]` (codes like `LINE_OUT_OF_STOCK`, `SHIPPING_RATE_REQUIRED`, `COUPON_INVALID`) + `shippingOptions` + `paymentMethods`, creating nothing. `POST /api/checkout` **requires an `Idempotency-Key` header** (8–100 chars; the frontend generates one per checkout attempt and reuses it on retry): 201 new order, 200 same order for a repeated key, 409 `{ problems }`. One transaction: cancel the bag's older unpaid order, re-validate + reprice, reserve stock for all lines with one conditional `UPDATE … WHERE stock >= qty` (`orders/stock.ts`), reserve the coupon use the same way, create the order with full snapshots + first status change. Order numbers come from the `order_number_seq` Postgres sequence (`MBS-10001`). Payment methods: AUD → `SQUARE`, `PAYPAL`; others → `STRIPE`, `PAYPAL`. The cart is emptied only when the order is paid.
+- Orders (`orders/`): `OrderLifecycleService` owns status changes. `canTransition(from, to, actor)` (admin: PROCESSING → SHIPPED → DELIVERED, unpaid/processing → CANCELLED; payment: PENDING_PAYMENT/late-CANCELLED → PROCESSING, → REFUNDED). Every change writes `OrderStatusChange.changedBy`. `markPaid(orderId, payment)` is idempotent (by `providerPaymentId`) and returns `PAID | ALREADY_PAID | NEEDS_REFUND | AMOUNT_MISMATCH` — phase 6 webhooks call it and refund on `NEEDS_REFUND`. Cancelling returns stock and the coupon use. Stock changes refresh storefront caches only for products that sold out or came back.
+- Scheduler (`scheduler/`, `@nestjs/schedule`): releases unpaid orders after 30 min (every 5 min) and deletes expired carts (daily). Each job holds a Postgres advisory lock for its duration, so it never overlaps, even across servers. `SCHEDULER_ENABLED=false` in tests.
 - `main.ts` enables CORS for `FRONTEND_URL` (comma-separated list) with `credentials: true`.
 - ESM project (`"type": "module"`): imports use explicit `.js` extensions even in `.ts` files. Follow this for every new file.
 - The test runner is Vitest (not Jest), and linting is oxlint (not ESLint).
@@ -194,11 +204,12 @@ Each module lives in `src/modules/<name>/`:
 | `catalog` | Categories, products, variants, images, size guides, attributes |
 | `collections` | Collections, smart-rule → `where` builder, filter counts |
 | `cart` | Server-side cart, cookie token, add/update/remove, apply coupon |
-| `pricing` | Currency conversion, coupons, shipping, GST, totals. Only controller: public read-only `GET /api/currencies` |
-| `checkout` | Validates the cart, creates the order, reserves stock |
-| `orders` | Customer order history, admin order list, status updates, tracking |
+| `pricing` | `calculatePricing` + `PricingService` (currency, coupons, shipping, GST, totals); public `GET /api/currencies`; admin currencies and coupons |
+| `checkout` | Preview, idempotent checkout, stock + coupon reservation, order creation (PENDING_PAYMENT) |
+| `orders` | Order lifecycle (mark paid, cancel, expiry), customer history, guest lookup, admin list/detail/status/tracking |
 | `payments` | `PaymentProvider` interface with `square`, `stripe` and `paypal` adapters, plus webhook controllers |
-| `shipping` | Zones and rates; finds the zone for a country code |
+| `shipping` | `GET /api/shipping/options`; admin zones (one zone per country, one fallback) and rates |
+| `scheduler` | Background jobs with advisory locks |
 | `content` | Pages, sections, menus, banners, FAQ, store settings |
 | `uploads` | Image upload (sharp → WebP) to local disk or S3/R2; returns `{ url, width, height }` |
 | `redirects` | Old-slug redirects (automatic on slug change + admin CRUD), `resolve` for the storefront |

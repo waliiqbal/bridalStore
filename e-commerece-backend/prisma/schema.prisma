@@ -413,6 +413,7 @@ model Cart {
   currencyCode String     @default("AUD")
   couponCode   String?
   items        CartItem[]
+  orders       Order[]
   expiresAt    DateTime
   createdAt    DateTime   @default(now())
   updatedAt    DateTime   @updatedAt
@@ -474,6 +475,7 @@ model Coupon {
   startsAt       DateTime?
   expiresAt      DateTime?
   isActive       Boolean    @default(true)
+  orders         Order[]
   createdAt      DateTime   @default(now())
   updatedAt      DateTime   @updatedAt
 }
@@ -513,12 +515,22 @@ model Order {
   // Same total in AUD, for reporting
   totalAud      Int
 
-  couponCode     String?
-  shippingMethod String?
-  trackingNumber String?
-  trackingUrl    String?
-  customerNote   String?
-  adminNote      String?
+  couponCode           String?
+  // Coupon used, so its use can be given back if the order is cancelled
+  couponId             String?
+  coupon               Coupon?   @relation(fields: [couponId], references: [id], onDelete: SetNull)
+  // Cart the order came from: replaces a stale pending order, emptied once paid
+  cartId               String?
+  cart                 Cart?     @relation(fields: [cartId], references: [id], onDelete: SetNull)
+  // Same Idempotency-Key header → same order (double clicks, retries)
+  idempotencyKey       String?   @unique
+  // Stock is held until then while the order is PENDING_PAYMENT
+  reservationExpiresAt DateTime?
+  shippingMethod       String?
+  trackingNumber       String?
+  trackingUrl          String?
+  customerNote         String?
+  adminNote            String?
 
   items         OrderItem[]
   payments      Payment[]
@@ -533,6 +545,8 @@ model Order {
   @@index([status, createdAt])
   @@index([customerId])
   @@index([email])
+  @@index([status, reservationExpiresAt])
+  @@index([cartId])
 }
 
 model OrderItem {
@@ -695,19 +709,21 @@ model Faq {
 
 // Single row of store-wide settings the owner can edit
 model StoreSettings {
-  id                Int      @id @default(1)
-  storeName         String   @default("Malikah Bridal Studio")
-  contactEmail      String?
-  contactPhone      String?
-  whatsappNumber    String?
-  announcementBar   String?
-  gstRatePercent    Decimal  @default(10) @db.Decimal(5, 2)
-  instagramUrl      String?
-  facebookUrl       String?
-  tiktokUrl         String?
-  metaPixelId       String?
-  googleAnalyticsId String?
-  updatedAt         DateTime @updatedAt
+  id                  Int      @id @default(1)
+  storeName           String   @default("Malikah Bridal Studio")
+  contactEmail        String?
+  contactPhone        String?
+  whatsappNumber      String?
+  announcementBar     String?
+  gstRatePercent      Decimal  @default(10) @db.Decimal(5, 2)
+  instagramUrl        String?
+  facebookUrl         String?
+  tiktokUrl           String?
+  metaPixelId         String?
+  googleAnalyticsId   String?
+  // When true, orders shipped to zones without GST pay prices with the GST portion removed
+  removeGstForExports Boolean  @default(false)
+  updatedAt           DateTime @updatedAt
 }
 
 // ───────────────────────── Redirects ─────────────────────────
