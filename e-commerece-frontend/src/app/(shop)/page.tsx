@@ -3,10 +3,11 @@ import { FeatureIcons } from "@/modules/products/components/FeatureIcons";
 import { PromoTiles } from "@/modules/products/components/PromoTiles";
 import { TrendingCarousel } from "@/modules/products/components/TrendingCarousel";
 import { ProductCarousel } from "@/modules/products/components/ProductCarousel";
+import { SectionHeading } from "@/shared/components/SectionHeading";
 import { ImageBanner } from "@/modules/products/components/ImageBanner";
-import { ProductRow } from "@/modules/products/components/ProductRow";
-import { FeatureBanner } from "@/modules/products/components/FeatureBanner";
-import { CuratedCollections } from "@/modules/products/components/CuratedCollections";
+import { ServiceBanner } from "@/modules/products/components/ServiceBanner";
+import { LuGem, LuSmartphone } from "react-icons/lu";
+import { MediaCollage } from "@/modules/products/components/MediaCollage";
 import { BrideGroomSection } from "@/modules/products/components/BrideGroomSection";
 import { StoreLocations } from "@/modules/products/components/StoreLocations";
 import { CustomerStories } from "@/modules/products/components/CustomerStories";
@@ -28,6 +29,12 @@ const collections = [
   { title: "Menswear Edit" },
   { title: "Statement Jewelry" },
 ];
+const curated = [
+  { title: "Minimalist Styles" },
+  { title: "Classic Picks" },
+  { title: "Printed Collection" },
+  { title: "Rich Embroidered Styles" },
+];
 const trending = [
   "Embroidered Silk Saree", "Zari Lehenga Set", "Festive Kurta Set", "Pre-draped Saree",
   "Sequin Gown", "Printed Anarkali", "Velvet Sherwani", "Organza Saree",
@@ -42,10 +49,6 @@ const corsets = [
   { name: "Ivory Corset Lehenga Set", price: "$389" },
   { name: "Wine Velvet Corset Gown", price: "$459" },
   { name: "Champagne Sequin Corset Set", price: "$329" },
-];
-const picks = [
-  "Pastel Lehenga", "Handloom Saree", "Indo Western Jacket Set", "Silk Bandhgala",
-  "Cape Set", "Ruffle Saree", "Cotton Kurta Set", "Statement Blouse",
 ];
 
 export default function Home() {
@@ -64,16 +67,71 @@ export default function Home() {
         cta="Start Call Now"
         index={4}
       />
-      <ProductRow title="Editor Picks" subtitle="Handpicked by our stylists" items={picks} offset={2} />
-      <FeatureBanner
-        eyebrow="The Saree Edit"
-        title="Ready-to-wear Sarees"
-        text="Pre-draped styles that look effortless and are ready in minutes."
-        cta="Shop Sarees"
+      <section className="pt-14">
+        <SectionHeading title="Editor's Picks" />
+        <div className="grid gap-4 px-2 lg:grid-cols-2 lg:px-4">
+          <ImageBanner
+            title="Signature Blouses"
+            text="Crafted for every drape."
+            cta="Shop Now"
+            index={1}
+            align="center"
+            tone="dark"
+            className=""
+            imageClassName="h-[300px] w-full sm:h-[420px]"
+          />
+          <ImageBanner
+            title="Twirl In Anarkalis"
+            text="Make an entrance in styles made to stand out."
+            cta="Shop Now"
+            index={3}
+            align="center"
+            tone="dark"
+            className=""
+            imageClassName="h-[300px] w-full sm:h-[420px]"
+          />
+        </div>
+      </section>
+      <MediaCollage
+        heading="The Saree Edit"
+        items={[{}, {}, {}, {}]}
+        lines={["The Perfect Drape,", "Made Easy"]}
+        title="Ready-Draped Sarees"
+        cta="Pre-Drape Now"
+        text="The sarees you love, expertly pre-draped for you."
         index={1}
       />
-      <CuratedCollections />
+      <PromoTiles title="Curated Collections" items={curated} offset={1} />
+      <section className="pt-14">
+        <SectionHeading title="Bride And Groom Collection" />
+        <ImageBanner
+          title="The Wedding Edit"
+          text="Curated looks for the bride and groom."
+          cta="Shop Now"
+          index={5}
+          align="right"
+          tone="dark"
+          className="px-2 lg:px-4"
+          imageClassName="h-[320px] w-full sm:h-[520px]"
+        />
+      </section>
       <BrideGroomSection />
+      <ServiceBanner
+        items={[
+          {
+            icon: LuSmartphone,
+            title: "Shop Via Video Call",
+            text: "Get a free virtual styling session",
+            cta: "Book an Appointment",
+          },
+          {
+            icon: LuGem,
+            title: "The Bridal Stylist",
+            text: "Book a personal bridal consultation and find your wedding outfit",
+            cta: "Book an Appointment",
+          },
+        ]}
+      />
       <StoreLocations />
       <CustomerStories />
       <InstagramFeed />
