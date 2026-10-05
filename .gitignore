@@ -26,10 +26,11 @@ secrets/
 *.log
 npm-debug.log*
 *.sql
+!e-commerece-backend/prisma/migrations/**/*.sql
 *.dump
 *.sqlite
 *.db
-uploads/
+/e-commerece-backend/uploads/
 
 # OS / editor
 .DS_Store

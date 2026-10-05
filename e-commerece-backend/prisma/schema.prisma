@@ -1,7 +1,6 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Get a free hosted Postgres database in seconds: `npx create-db`
+// Malikah Bridal Studio — single-store e-commerce schema
+// Money rule: every amount is an Int in the smallest unit (cents).
+// Base currency is AUD. Product prices are stored in AUD, GST-inclusive.
 
 generator client {
   provider = "prisma-client"
@@ -10,4 +9,782 @@ generator client {
 
 datasource db {
   provider = "postgresql"
+}
+
+// ───────────────────────── Enums ─────────────────────────
+
+enum ProductStatus {
+  DRAFT
+  ACTIVE
+  ARCHIVED
+}
+
+enum OrderStatus {
+  PENDING_PAYMENT
+  PROCESSING
+  SHIPPED
+  DELIVERED
+  CANCELLED
+  REFUNDED
+}
+
+enum PaymentProvider {
+  SQUARE
+  STRIPE
+  PAYPAL
+}
+
+enum PaymentStatus {
+  PENDING
+  SUCCEEDED
+  FAILED
+  REFUNDED
+}
+
+enum RefundStatus {
+  PENDING
+  SUCCEEDED
+  FAILED
+}
+
+enum CouponType {
+  PERCENTAGE
+  FIXED_AMOUNT
+  FREE_SHIPPING
+}
+
+enum CollectionType {
+  MANUAL // owner picks products by hand
+  SMART // products added automatically by rules
+}
+
+enum CollectionSort {
+  MANUAL
+  BEST_SELLING
+  NEWEST
+  PRICE_ASC
+  PRICE_DESC
+}
+
+enum RuleField {
+  CATEGORY // value = category id (includes sub-categories)
+  TAG // value = tag text
+  ATTRIBUTE // value = attribute value id (e.g. Occasion: Mehndi)
+  COLOUR // value = colour name
+  SIZE // value = size name
+  PRICE // value = AUD cents
+  ON_SALE // compareAtPrice is set; value ignored
+  NEW_ARRIVAL // isNewArrival = true; value ignored
+  READY_TO_SHIP // isReadyToShip = true; value ignored
+  CREATED_WITHIN_DAYS // value = number of days
+}
+
+enum RuleOperator {
+  EQUALS
+  NOT_EQUALS
+  LESS_THAN
+  GREATER_THAN
+}
+
+enum PageSectionType {
+  RICH_TEXT
+  HERO_BANNER
+  COLLECTION_GRID // products from one collection as a grid
+  PRODUCT_CAROUSEL // products from one collection as a slider
+  COLLECTION_TILES // several collections as image tiles
+  IMAGE_WITH_TEXT
+  FAQ
+}
+
+enum MenuItemType {
+  COLLECTION
+  CATEGORY
+  PAGE
+  URL
+  HEADING // group title inside a mega menu, e.g. "Style", "Occasion"
+}
+
+enum AdminRole {
+  OWNER
+  STAFF
+}
+
+// ───────────────────────── Admin ─────────────────────────
+
+model AdminUser {
+  id           String    @id @default(cuid())
+  email        String    @unique
+  passwordHash String
+  name         String
+  role         AdminRole @default(STAFF)
+  isActive     Boolean   @default(true)
+  lastLoginAt  DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+}
+
+// ───────────────────────── Catalog ─────────────────────────
+
+model Category {
+  id             String     @id @default(cuid())
+  name           String
+  slug           String     @unique
+  description    String?
+  imageUrl       String?
+  parentId       String?
+  parent         Category?  @relation("CategoryTree", fields: [parentId], references: [id], onDelete: SetNull)
+  children       Category[] @relation("CategoryTree")
+  sortOrder      Int        @default(0)
+  isVisible      Boolean    @default(true)
+  showInMenu     Boolean    @default(true)
+  seoTitle       String?
+  seoDescription String?
+  products       Product[]
+  menuItems      MenuItem[]
+  createdAt      DateTime   @default(now())
+  updatedAt      DateTime   @updatedAt
+
+  @@index([parentId])
+}
+
+model Product {
+  id             String                  @id @default(cuid())
+  name           String
+  slug           String                  @unique
+  description    String?
+  // e.g. fabric, embroidery, what is included (shirt, dupatta, trouser)
+  details        String?
+  status         ProductStatus           @default(DRAFT)
+  categoryId     String?
+  category       Category?               @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  // Default price in AUD cents, GST-inclusive. Variants can override.
+  price          Int
+  // Original price shown crossed out when on sale
+  compareAtPrice Int?
+  isFeatured     Boolean                 @default(false)
+  isNewArrival   Boolean                 @default(false)
+  isReadyToShip  Boolean                 @default(false)
+  // Made-to-order delivery time in days; null when ready to ship
+  deliveryDays   Int?
+  // Small label on product cards, e.g. "New This Week", "Selling Fast"
+  badge          String?
+  // Free-form tags used by smart collections and search
+  tags           String[]
+  // Incremented when an order is paid; used for "Best selling" sort
+  salesCount     Int                     @default(0)
+  sizeGuideId    String?
+  sizeGuide      SizeGuide?              @relation(fields: [sizeGuideId], references: [id], onDelete: SetNull)
+  seoTitle       String?
+  seoDescription String?
+  images         ProductImage[]
+  variants       ProductVariant[]
+  wishlistItems  WishlistItem[]
+  collections    CollectionProduct[]
+  attributes     ProductAttributeValue[]
+  createdAt      DateTime                @default(now())
+  updatedAt      DateTime                @updatedAt
+
+  @@index([categoryId, status])
+  @@index([status, isFeatured])
+  @@index([tags], type: Gin)
+}
+
+model ProductImage {
+  id        String   @id @default(cuid())
+  productId String
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  url       String
+  altText   String?
+  // Optional: link an image to a colour so the gallery switches with the colour picker
+  colour    String?
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+
+  @@index([productId])
+}
+
+model ProductVariant {
+  id         String      @id @default(cuid())
+  productId  String
+  product    Product     @relation(fields: [productId], references: [id], onDelete: Cascade)
+  sku        String      @unique
+  size       String?
+  colour     String?
+  // Null = use Product.price
+  price      Int?
+  stock      Int         @default(0)
+  isActive   Boolean     @default(true)
+  sortOrder  Int         @default(0)
+  cartItems  CartItem[]
+  orderItems OrderItem[]
+  createdAt  DateTime    @default(now())
+  updatedAt  DateTime    @updatedAt
+
+  @@unique([productId, size, colour])
+  @@index([productId])
+}
+
+model SizeGuide {
+  id        String    @id @default(cuid())
+  name      String
+  // Simple HTML/markdown table or image URL the admin can edit
+  content   String
+  products  Product[]
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+}
+
+// ───────────────────────── Filter attributes ─────────────────────────
+// Powers the collection-page filters: Fabric, Work, Occasion, Print, etc.
+
+model Attribute {
+  id           String           @id @default(cuid())
+  name         String           @unique // "Fabric", "Occasion", "Work"
+  slug         String           @unique
+  isFilterable Boolean          @default(true)
+  sortOrder    Int              @default(0)
+  values       AttributeValue[]
+}
+
+model AttributeValue {
+  id          String                  @id @default(cuid())
+  attributeId String
+  attribute   Attribute               @relation(fields: [attributeId], references: [id], onDelete: Cascade)
+  value       String // "Chiffon", "Mehndi", "Zardozi"
+  slug        String
+  sortOrder   Int                     @default(0)
+  products    ProductAttributeValue[]
+
+  @@unique([attributeId, slug])
+}
+
+model ProductAttributeValue {
+  productId        String
+  product          Product        @relation(fields: [productId], references: [id], onDelete: Cascade)
+  attributeValueId String
+  attributeValue   AttributeValue @relation(fields: [attributeValueId], references: [id], onDelete: Cascade)
+
+  @@id([productId, attributeValueId])
+  @@index([attributeValueId])
+}
+
+// ───────────────────────── Collections ─────────────────────────
+// Category   = what a product IS (one per product, e.g. Suits > Sharara).
+// Collection = how products are GROUPED for shoppers (many per product,
+//              e.g. "Eid Edit", "Mehndi Outfits", "Under $199", "New Arrivals").
+
+model Collection {
+  id                   String              @id @default(cuid())
+  title                String
+  slug                 String              @unique // /collections/eid-edit
+  type                 CollectionType      @default(MANUAL)
+  // SMART only: true = product must match ALL rules, false = ANY rule
+  matchAllRules        Boolean             @default(true)
+  rules                CollectionRule[]
+  products             CollectionProduct[] // MANUAL only
+  defaultSort          CollectionSort      @default(BEST_SELLING)
+  // Short intro shown above the product grid
+  description          String?
+  // Long SEO text shown below the grid ("Read more")
+  seoContent           String?
+  bannerImageUrl       String?
+  mobileBannerImageUrl String?
+  // Small notice above the grid, e.g. offer T&Cs
+  noticeText           String?
+  // Which attribute filters to show on this page; empty = all filterable
+  filterAttributeIds   String[]
+  isPublished          Boolean             @default(true)
+  seoTitle             String?
+  seoDescription       String?
+  pageSections         PageSection[]
+  menuItems            MenuItem[]
+  createdAt            DateTime            @default(now())
+  updatedAt            DateTime            @updatedAt
+}
+
+model CollectionProduct {
+  collectionId String
+  collection   Collection @relation(fields: [collectionId], references: [id], onDelete: Cascade)
+  productId    String
+  product      Product    @relation(fields: [productId], references: [id], onDelete: Cascade)
+  // Position when the collection uses MANUAL sort
+  sortOrder    Int        @default(0)
+  addedAt      DateTime   @default(now())
+
+  @@id([collectionId, productId])
+  @@index([productId])
+}
+
+model CollectionRule {
+  id           String       @id @default(cuid())
+  collectionId String
+  collection   Collection   @relation(fields: [collectionId], references: [id], onDelete: Cascade)
+  field        RuleField
+  operator     RuleOperator @default(EQUALS)
+  value        String       @default("")
+
+  @@index([collectionId])
+}
+
+// ───────────────────────── Currency ─────────────────────────
+// Prices live in AUD. Other currencies are shown using a rate the admin sets.
+
+model Currency {
+  code        String   @id // "AUD", "USD", "GBP"
+  symbol      String
+  // How many units of this currency equal 1 AUD (AUD itself = 1)
+  rateFromAud Decimal  @default(1) @db.Decimal(12, 6)
+  // Round converted prices up to a clean number, in cents (e.g. 100 = whole units)
+  roundTo     Int      @default(100)
+  isEnabled   Boolean  @default(true)
+  isDefault   Boolean  @default(false)
+  updatedAt   DateTime @updatedAt
+}
+
+// ───────────────────────── Customers ─────────────────────────
+
+model Customer {
+  id                  String               @id @default(cuid())
+  email               String               @unique
+  passwordHash        String? // null for guest-created customers
+  firstName           String?
+  lastName            String?
+  phone               String?
+  marketingOptIn      Boolean              @default(false)
+  addresses           Address[]
+  orders              Order[]
+  wishlist            WishlistItem[]
+  carts               Cart[]
+  // Admin can deactivate a customer; deactivated customers are signed out
+  isActive            Boolean              @default(true)
+  // Bumped on password change/reset to sign out other sessions
+  sessionVersion      Int                  @default(0)
+  passwordResetTokens PasswordResetToken[]
+  createdAt           DateTime             @default(now())
+  updatedAt           DateTime             @updatedAt
+}
+
+model Address {
+  id          String   @id @default(cuid())
+  customerId  String
+  customer    Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  fullName    String
+  phone       String?
+  line1       String
+  line2       String?
+  city        String
+  state       String?
+  postcode    String
+  countryCode String // ISO 2-letter, e.g. "AU"
+  isDefault   Boolean  @default(false)
+  createdAt   DateTime @default(now())
+
+  @@index([customerId])
+}
+
+// Password reset / "finish creating your account" links. Only a SHA-256 hash
+// of the emailed token is stored; tokens are single use and expire.
+model PasswordResetToken {
+  id         String    @id @default(cuid())
+  customerId String
+  customer   Customer  @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  tokenHash  String    @unique
+  expiresAt  DateTime
+  usedAt     DateTime?
+  createdAt  DateTime  @default(now())
+
+  @@index([customerId])
+}
+
+model WishlistItem {
+  id         String   @id @default(cuid())
+  customerId String
+  customer   Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  productId  String
+  product    Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  createdAt  DateTime @default(now())
+
+  @@unique([customerId, productId])
+}
+
+// ───────────────────────── Cart ─────────────────────────
+// Cart lives on the server, identified by a cookie token.
+
+model Cart {
+  id           String     @id @default(cuid())
+  token        String     @unique
+  // One cart per customer; guest carts have no customer
+  customerId   String?    @unique
+  customer     Customer?  @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  currencyCode String     @default("AUD")
+  couponCode   String?
+  items        CartItem[]
+  orders       Order[]
+  expiresAt    DateTime
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+}
+
+model CartItem {
+  id        String         @id @default(cuid())
+  cartId    String
+  cart      Cart           @relation(fields: [cartId], references: [id], onDelete: Cascade)
+  variantId String
+  variant   ProductVariant @relation(fields: [variantId], references: [id], onDelete: Cascade)
+  quantity  Int            @default(1)
+  createdAt DateTime       @default(now())
+
+  @@unique([cartId, variantId])
+}
+
+// ───────────────────────── Shipping ─────────────────────────
+
+model ShippingZone {
+  id           String         @id @default(cuid())
+  name         String // "Australia", "UK & Europe", "Rest of World"
+  // ISO 2-letter country codes in this zone; empty + isFallback = everywhere else
+  countryCodes String[]
+  isFallback   Boolean        @default(false)
+  // Whether Australian GST applies to orders shipped to this zone
+  chargesGst   Boolean        @default(false)
+  rates        ShippingRate[]
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+}
+
+model ShippingRate {
+  id             String       @id @default(cuid())
+  zoneId         String
+  zone           ShippingZone @relation(fields: [zoneId], references: [id], onDelete: Cascade)
+  name           String // "Standard", "Express"
+  price          Int // AUD cents
+  // Order subtotal (AUD cents) above which this rate becomes free; null = never free
+  freeOverAmount Int?
+  estimatedDays  String? // "3–5 business days"
+  isActive       Boolean      @default(true)
+  sortOrder      Int          @default(0)
+
+  @@index([zoneId])
+}
+
+// ───────────────────────── Coupons ─────────────────────────
+
+model Coupon {
+  id             String     @id @default(cuid())
+  code           String     @unique
+  type           CouponType
+  // PERCENTAGE: 10 = 10%. FIXED_AMOUNT: AUD cents. FREE_SHIPPING: ignored.
+  value          Int        @default(0)
+  minOrderAmount Int? // AUD cents
+  maxUses        Int?
+  usedCount      Int        @default(0)
+  startsAt       DateTime?
+  expiresAt      DateTime?
+  isActive       Boolean    @default(true)
+  orders         Order[]
+  createdAt      DateTime   @default(now())
+  updatedAt      DateTime   @updatedAt
+}
+
+// ───────────────────────── Orders ─────────────────────────
+// Orders store a snapshot of everything, so later product edits never change past orders.
+
+model Order {
+  id          String      @id @default(cuid())
+  orderNumber String      @unique // human-friendly, e.g. "MBS-10024"
+  status      OrderStatus @default(PENDING_PAYMENT)
+  customerId  String?
+  customer    Customer?   @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  email       String
+  phone       String?
+
+  // Shipping address snapshot
+  shipFullName    String
+  shipLine1       String
+  shipLine2       String?
+  shipCity        String
+  shipState       String?
+  shipPostcode    String
+  shipCountryCode String
+
+  // Currency the customer paid in, and the rate used at checkout
+  currencyCode String
+  exchangeRate Decimal @db.Decimal(12, 6)
+
+  // All totals below are in the order's currency (cents)
+  subtotal      Int
+  discountTotal Int @default(0)
+  shippingTotal Int @default(0)
+  // GST portion included in the total (prices are GST-inclusive)
+  taxTotal      Int @default(0)
+  total         Int
+  // Same total in AUD, for reporting
+  totalAud      Int
+
+  couponCode           String?
+  // Coupon used, so its use can be given back if the order is cancelled
+  couponId             String?
+  coupon               Coupon?   @relation(fields: [couponId], references: [id], onDelete: SetNull)
+  // Cart the order came from: replaces a stale pending order, emptied once paid
+  cartId               String?
+  cart                 Cart?     @relation(fields: [cartId], references: [id], onDelete: SetNull)
+  // Same Idempotency-Key header → same order (double clicks, retries)
+  idempotencyKey       String?   @unique
+  // Stock is held until then while the order is PENDING_PAYMENT
+  reservationExpiresAt DateTime?
+  shippingMethod       String?
+  trackingNumber       String?
+  trackingUrl          String?
+  customerNote         String?
+  adminNote            String?
+  // Set when something needs the owner: amount mismatch, automatic refund, refund failure
+  attentionNote        String?
+
+  items         OrderItem[]
+  payments      Payment[]
+  statusHistory OrderStatusChange[]
+
+  placedAt    DateTime?
+  shippedAt   DateTime?
+  deliveredAt DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([status, createdAt])
+  @@index([customerId])
+  @@index([email])
+  @@index([status, reservationExpiresAt])
+  @@index([cartId])
+  @@index([attentionNote])
+}
+
+model OrderItem {
+  id          String          @id @default(cuid())
+  orderId     String
+  order       Order           @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  variantId   String?
+  variant     ProductVariant? @relation(fields: [variantId], references: [id], onDelete: SetNull)
+  // Snapshot fields
+  productName String
+  sku         String
+  size        String?
+  colour      String?
+  imageUrl    String?
+  unitPrice   Int // order currency, cents
+  quantity    Int
+  lineTotal   Int
+
+  @@index([orderId])
+}
+
+model OrderStatusChange {
+  id        String       @id @default(cuid())
+  orderId   String
+  order     Order        @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  from      OrderStatus?
+  to        OrderStatus
+  note      String?
+  changedBy String? // admin email, or "system"
+  createdAt DateTime     @default(now())
+
+  @@index([orderId])
+}
+
+model Payment {
+  id                String          @id @default(cuid())
+  orderId           String
+  order             Order           @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  provider          PaymentProvider
+  status            PaymentStatus   @default(PENDING)
+  amount            Int // cents, in currencyCode
+  currencyCode      String
+  // ID from Square / Stripe / PayPal, used for webhooks and refunds
+  providerPaymentId String?         @unique
+  // PayPal: the capture ID (refunds and capture webhooks use it); providerPaymentId = PayPal order ID
+  providerCaptureId String?         @unique
+  // Our idempotency key sent to the provider for this attempt
+  idempotencyKey    String?         @unique
+  // Minimal summary only (IDs, status, amounts) — never full provider payloads
+  rawResponse       Json?
+  refunds           Refund[]
+  errorMessage      String?
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+
+  @@index([orderId])
+}
+
+// Full or partial refunds of a payment. A PENDING refund already counts
+// against what can still be refunded.
+model Refund {
+  id               String       @id @default(cuid())
+  paymentId        String
+  payment          Payment      @relation(fields: [paymentId], references: [id], onDelete: Cascade)
+  amount           Int // cents, in currencyCode
+  currencyCode     String
+  reason           String
+  status           RefundStatus @default(PENDING)
+  providerRefundId String?      @unique
+  idempotencyKey   String       @unique
+  // Admin email or "system:auto-refund"
+  createdBy        String
+  errorMessage     String?
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
+
+  @@index([paymentId])
+}
+
+// Every provider webhook we processed, so a repeated delivery is ignored.
+model WebhookEvent {
+  id          String          @id @default(cuid())
+  provider    PaymentProvider
+  eventId     String
+  type        String
+  receivedAt  DateTime        @default(now())
+  processedAt DateTime?
+  error       String?
+
+  @@unique([provider, eventId])
+}
+
+// ───────────────────────── Content ─────────────────────────
+
+model Banner {
+  id             String    @id @default(cuid())
+  title          String?
+  subtitle       String?
+  imageUrl       String
+  mobileImageUrl String?
+  linkUrl        String?
+  buttonText     String?
+  // Where it appears: "home_hero", "home_promo", etc.
+  placement      String    @default("home_hero")
+  sortOrder      Int       @default(0)
+  isActive       Boolean   @default(true)
+  startsAt       DateTime?
+  endsAt         DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  @@index([placement, isActive])
+}
+
+// Unlimited pages: About, Shipping, Returns, Privacy, FAQ, and anything new
+model Page {
+  id             String        @id @default(cuid())
+  title          String
+  slug           String        @unique
+  // Optional simple body; richer layouts use sections below
+  content        String?
+  sections       PageSection[]
+  menuItems      MenuItem[]
+  isPublished    Boolean       @default(true)
+  showInFooter   Boolean       @default(true)
+  seoTitle       String?
+  seoDescription String?
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+}
+
+// Building blocks for pages (including the homepage, slug "home")
+model PageSection {
+  id            String          @id @default(cuid())
+  pageId        String
+  page          Page            @relation(fields: [pageId], references: [id], onDelete: Cascade)
+  type          PageSectionType
+  title         String?
+  subtitle      String?
+  body          String? // RICH_TEXT / IMAGE_WITH_TEXT
+  imageUrl      String?
+  linkUrl       String?
+  buttonText    String?
+  // COLLECTION_GRID / PRODUCT_CAROUSEL: which collection to pull products from
+  collectionId  String?
+  collection    Collection?     @relation(fields: [collectionId], references: [id], onDelete: SetNull)
+  // COLLECTION_TILES: which collections to show as tiles
+  collectionIds String[]
+  productLimit  Int             @default(8)
+  // Anything extra (layout, colours) without new columns
+  settings      Json?
+  sortOrder     Int             @default(0)
+  isActive      Boolean         @default(true)
+
+  @@index([pageId, sortOrder])
+}
+
+// ───────────────────────── Navigation ─────────────────────────
+// Header mega menu and footer links, all editable from admin.
+
+model Menu {
+  id     String     @id @default(cuid())
+  handle String     @unique // "main", "footer"
+  name   String
+  items  MenuItem[]
+}
+
+model MenuItem {
+  id           String       @id @default(cuid())
+  menuId       String
+  menu         Menu         @relation(fields: [menuId], references: [id], onDelete: Cascade)
+  parentId     String?
+  parent       MenuItem?    @relation("MenuTree", fields: [parentId], references: [id], onDelete: Cascade)
+  children     MenuItem[]   @relation("MenuTree")
+  label        String
+  type         MenuItemType
+  collectionId String?
+  collection   Collection?  @relation(fields: [collectionId], references: [id], onDelete: SetNull)
+  categoryId   String?
+  category     Category?    @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  pageId       String?
+  page         Page?        @relation(fields: [pageId], references: [id], onDelete: SetNull)
+  url          String?
+  // Optional image for mega-menu promo tiles
+  imageUrl     String?
+  // Highlight style, e.g. "red" for Sale
+  highlight    String?
+  sortOrder    Int          @default(0)
+
+  @@index([menuId, parentId, sortOrder])
+}
+
+model Faq {
+  id        String  @id @default(cuid())
+  question  String
+  answer    String
+  sortOrder Int     @default(0)
+  isActive  Boolean @default(true)
+}
+
+// Single row of store-wide settings the owner can edit
+model StoreSettings {
+  id                  Int      @id @default(1)
+  storeName           String   @default("Malikah Bridal Studio")
+  contactEmail        String?
+  contactPhone        String?
+  whatsappNumber      String?
+  announcementBar     String?
+  gstRatePercent      Decimal  @default(10) @db.Decimal(5, 2)
+  instagramUrl        String?
+  facebookUrl         String?
+  tiktokUrl           String?
+  metaPixelId         String?
+  googleAnalyticsId   String?
+  // When true, orders shipped to zones without GST pay prices with the GST portion removed
+  removeGstForExports Boolean  @default(false)
+  updatedAt           DateTime @updatedAt
+}
+
+// ───────────────────────── Redirects ─────────────────────────
+// Created automatically when a slug changes, so old links and search results keep working.
+
+model Redirect {
+  id         String   @id @default(cuid())
+  fromPath   String   @unique // "/products/old-slug"
+  toPath     String // "/products/new-slug"
+  statusCode Int      @default(301)
+  createdAt  DateTime @default(now())
+
+  // Used to repoint older redirects when a path moves again (no chains)
+  @@index([toPath])
 }
