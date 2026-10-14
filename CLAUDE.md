@@ -224,6 +224,7 @@ Each module lives in `src/modules/<name>/`:
 | `revalidation` | Tells the Next.js storefront which cache tags to refresh after admin changes |
 | `mail` | `MailService` (console driver now; real provider, password-reset/order/shipping templates in phase 7) |
 | `feeds` | `sitemap.xml`, Meta product feed |
+| `enquiries` | "Find your outfit" lead form (the shop-window QR code opens `/enquiry?source=window`): public `GET /api/enquiries/options`, `POST /api/enquiries` (5/min per IP, honeypot field `website`); admin `GET/PATCH/DELETE /api/admin/enquiries`, `GET /api/admin/enquiries/counts`. Table `Enquiry` (status NEW → CONTACTED → BOOKED → CLOSED, private `adminNote`). Budget and outfit-type choices live in `enquiry-options.ts` (codes in the DB, labels on screen). Admin screen: Enquiries. No QR image is generated; the owner makes one from the link. |
 
 ### Conventions
 

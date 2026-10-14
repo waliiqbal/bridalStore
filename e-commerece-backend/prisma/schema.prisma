@@ -258,6 +258,8 @@ model AttributeValue {
   @@unique([attributeId, slug])
 }
 
+
+
 model ProductAttributeValue {
   productId        String
   product          Product        @relation(fields: [productId], references: [id], onDelete: Cascade)
@@ -787,4 +789,38 @@ model Redirect {
 
   // Used to repoint older redirects when a path moves again (no chains)
   @@index([toPath])
+}
+
+// ───────────────────────── Enquiries ─────────────────────────
+// "Tell us what you're looking for" form (the QR code in the shop window opens it).
+// The owner follows these up from the admin panel.
+
+enum EnquiryStatus {
+  NEW
+  CONTACTED
+  BOOKED
+  CLOSED
+}
+
+model Enquiry {
+  id          String        @id @default(cuid())
+  name        String
+  phone       String
+  email       String?
+  // Budget range code, e.g. "1000_2000" (labels live in enquiry-options.ts)
+  budget      String?
+  eventDate   DateTime?     @db.Date
+  // Outfit type codes, e.g. ["LEHENGA", "GHARARA"]
+  outfitTypes String[]
+  message     String?
+  // Where the customer came from: "website" or the ?source= in the QR link (e.g. "window")
+  source      String        @default("website")
+  status      EnquiryStatus @default(NEW)
+  // Private notes for the owner
+  adminNote   String?
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  @@index([status, createdAt])
+  @@index([eventDate])
 }

@@ -6,6 +6,7 @@ import { AppController } from './app.controller.js';
 import { AppService } from './app.service.js';
 import { CsrfGuard } from './common/csrf/csrf.guard.js';
 import { validateEnv } from './config/env.validation.js';
+import { EnquiriesModule } from './modules/enquiries/enquiries.module.js';
 import { HealthController } from './health/health.controller.js';
 import { AccountModule } from './modules/account/account.module.js';
 import { AuthModule } from './modules/auth/auth.module.js';
@@ -51,6 +52,7 @@ import { PrismaModule } from './prisma/prisma.module.js';
     CheckoutModule,
     SchedulerModule,
     PaymentsModule,
+    EnquiriesModule,
   ],
   controllers: [AppController, HealthController],
   // CSRF check for every state-changing request (X-Requested-With header)

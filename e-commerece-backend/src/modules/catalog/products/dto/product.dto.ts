@@ -209,6 +209,11 @@ export class GenerateVariantsDto {
   @Min(0)
   @Max(100_000)
   stock?: number;
+
+  // false = create the new items hidden from the shop (default: shown)
+  @IsOptional()
+  @IsBoolean()
+  isActive?: boolean;
 }
 
 export class UpdateVariantDto {

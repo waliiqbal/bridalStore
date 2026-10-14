@@ -9,6 +9,12 @@ export interface S3Env {
   publicUrl: string;
 }
 
+export interface CloudinaryEnv {
+  cloudName: string;
+  apiKey: string;
+  apiSecret: string;
+}
+
 export interface Env {
   NODE_ENV: 'development' | 'production' | 'test';
   PORT: number;
@@ -27,17 +33,18 @@ export interface Env {
   // Background jobs (expired reservations, old carts). Off in tests.
   SCHEDULER_ENABLED: boolean;
   PAYMENTS: PaymentsEnv;
-  STORAGE_DRIVER: 'local' | 's3';
+  STORAGE_DRIVER: 'local' | 's3' | 'cloudinary';
   UPLOADS_DIR: string;
   UPLOADS_PUBLIC_URL: string;
   S3?: S3Env;
+  CLOUDINARY?: CloudinaryEnv;
   FRONTEND_REVALIDATE_URL?: string;
   REVALIDATE_SECRET?: string;
 }
 
 const NODE_ENVS = ['development', 'production', 'test'] as const;
 const MAIL_DRIVERS = ['console', 'provider'] as const;
-const STORAGE_DRIVERS = ['local', 's3'] as const;
+const STORAGE_DRIVERS = ['local', 's3', 'cloudinary'] as const;
 const isHttpUrl = (v: string) => /^https?:\/\/[^\s]+$/.test(v);
 const trimSlash = (v: string) => v.replace(/\/+$/, '');
 
@@ -136,6 +143,20 @@ export function validateEnv(raw: Record<string, unknown>): Env {
     };
   }
 
+  let cloudinary: CloudinaryEnv | undefined;
+  if (storageDriver === 'cloudinary') {
+    const required = ['CLOUDINARY_CLOUD_NAME', 'CLOUDINARY_API_KEY', 'CLOUDINARY_API_SECRET'];
+    const missing = required.filter((key) => !str(key));
+    if (missing.length) {
+      errors.push(`STORAGE_DRIVER=cloudinary also needs: ${missing.join(', ')}`);
+    }
+    cloudinary = {
+      cloudName: str('CLOUDINARY_CLOUD_NAME'),
+      apiKey: str('CLOUDINARY_API_KEY'),
+      apiSecret: str('CLOUDINARY_API_SECRET'),
+    };
+  }
+
   // ── Storefront cache revalidation (optional) ──
   const revalidateUrl = str('FRONTEND_REVALIDATE_URL') || undefined;
   const revalidateSecret = str('REVALIDATE_SECRET') || undefined;
@@ -176,6 +197,7 @@ export function validateEnv(raw: Record<string, unknown>): Env {
     UPLOADS_DIR: str('UPLOADS_DIR') || 'uploads',
     UPLOADS_PUBLIC_URL: uploadsPublicUrl,
     S3: s3,
+    CLOUDINARY: cloudinary,
     FRONTEND_REVALIDATE_URL: revalidateUrl,
     REVALIDATE_SECRET: revalidateSecret,
   };

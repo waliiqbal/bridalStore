@@ -25,13 +25,13 @@ export function LogoMark({ className = "" }: { className?: string }) {
 
 export function Logo() {
   return (
-    <span className="inline-flex items-center gap-3">
-      <LogoMark className="h-9 w-11 text-gold sm:h-11 sm:w-14" />
+    <span className="inline-flex items-center gap-2 sm:gap-3">
+      <LogoMark className="h-7 w-9 text-gold sm:h-11 sm:w-14" />
       <span className="text-center leading-none">
-        <span className="block pl-[0.4em] font-serif text-2xl font-bold tracking-[0.4em] sm:text-3xl">
+        <span className="block pl-[0.3em] font-serif text-lg font-bold tracking-[0.3em] sm:pl-[0.4em] sm:text-3xl sm:tracking-[0.4em]">
           {brand.logoName}
         </span>
-        <span className="mt-1.5 block pl-[0.4em] text-[10px] tracking-[0.4em] sm:text-xs">
+        <span className="mt-1 block pl-[0.3em] text-[8px] tracking-[0.3em] sm:mt-1.5 sm:pl-[0.4em] sm:text-xs sm:tracking-[0.4em]">
           {brand.logoTagline}
         </span>
       </span>

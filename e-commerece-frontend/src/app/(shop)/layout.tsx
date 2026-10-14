@@ -1,5 +1,6 @@
-import { Header } from "@/shared/layouts/Header";
+import { FloatingActions } from "@/shared/layouts/FloatingActions";
 import { Footer } from "@/shared/layouts/Footer";
+import { Header } from "@/shared/layouts/Header";
 
 export default function ShopLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -7,6 +8,7 @@ export default function ShopLayout({ children }: { children: React.ReactNode }) 
       <Header />
       <main className="flex-1">{children}</main>
       <Footer />
+      <FloatingActions />
     </>
   );
 }

@@ -63,6 +63,7 @@ export class VariantsService {
           colour: v.colour,
           price: dto.price ?? null,
           stock: dto.stock ?? 0,
+          isActive: dto.isActive ?? true,
           sortOrder: nextSort + i,
         })),
       });

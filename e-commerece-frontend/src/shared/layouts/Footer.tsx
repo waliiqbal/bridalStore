@@ -1,125 +1,123 @@
-import {
-  FaCcAmex,
-  FaCcDinersClub,
-  FaCcMastercard,
-  FaCcPaypal,
-  FaCcVisa,
-  FaFacebookF,
-  FaInstagram,
-  FaPinterest,
-  FaWhatsapp,
-  FaXTwitter,
-  FaYoutube,
-} from "react-icons/fa6";
-import { LuPackage, LuRotateCcw, LuRuler, LuSmile } from "react-icons/lu";
+import { FaFacebookF, FaInstagram, FaTiktok, FaWhatsapp } from "react-icons/fa6";
+import { LuMail, LuPhone } from "react-icons/lu";
 import { brand } from "@/config/brand";
-import {
-  footerColumns,
-  footerLinkGroups,
-  shipCountries,
-} from "@/modules/products/data/nav";
-import { FloatingActions } from "./FloatingActions";
+import { getMenu, getSettings } from "@/modules/shop/api/shop.api";
+import type { PublicMenuItem } from "@/modules/shop/types/shop";
+import { Logo } from "@/shared/components/Logo";
+import { MenuLink } from "./MenuLink";
+import { whatsappLink } from "./whatsapp";
 
-const payments = [FaCcPaypal, FaCcMastercard, FaCcVisa, FaCcAmex, FaCcDinersClub];
-const socials = [FaInstagram, FaFacebookF, FaWhatsapp, FaYoutube, FaPinterest, FaXTwitter];
+// The bottom of every page: contact details and social links from Settings, and the link
+// columns from the owner's Footer menu (each group title becomes a column).
+export async function Footer() {
+  const [settings, menu] = await Promise.all([
+    getSettings().catch(() => null),
+    getMenu("footer").catch(() => null),
+  ]);
+  const items = menu?.items ?? [];
 
-const perks = [
-  { icon: LuSmile, lines: ["24x7", "Customer Support"] },
-  { icon: LuPackage, lines: ["Free Shipping*"] },
-  { icon: LuRotateCcw, lines: ["Easy Returns*"] },
-  { icon: LuRuler, lines: ["Custom", "Fitting"] },
-];
+  const columns = items.filter((item) => item.children.length > 0);
+  const loose = items.filter((item) => item.children.length === 0 && item.href);
+  const storeName = settings?.storeName ?? brand.name;
+  const chat = whatsappLink(settings?.whatsappNumber);
+  const socials = [
+    { label: "Instagram", href: settings?.instagramUrl, icon: FaInstagram },
+    { label: "Facebook", href: settings?.facebookUrl, icon: FaFacebookF },
+    { label: "TikTok", href: settings?.tiktokUrl, icon: FaTiktok },
+  ].filter((social): social is { label: string; href: string; icon: typeof FaInstagram } => !!social.href);
 
-export function Footer() {
   return (
-    <footer className="mt-14 bg-[#f7f7f7] text-neutral-800">
-      <div className="mx-auto max-w-[1900px] px-4 lg:px-10">
-        <div className="grid gap-8 py-10 sm:grid-cols-2 lg:grid-cols-5">
-          {footerColumns.map((col) => (
-            <div key={col.title}>
-              <h4 className="mb-4 text-sm font-medium uppercase">{col.title}</h4>
-              <ul className="space-y-2 text-sm">
-                {col.links.map((l) => (
-                  <li key={l}>
-                    <a href="#" className="hover:text-gold">{l}</a>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ))}
+    <footer className="mt-auto border-t border-line bg-cream">
+      <div className="mx-auto grid max-w-[1600px] gap-10 px-4 py-12 sm:grid-cols-2 lg:grid-cols-[1.4fr_repeat(auto-fit,minmax(9rem,1fr))] lg:px-6">
+        <div>
+          <Logo />
+          <p className="mt-4 max-w-xs text-sm text-muted">{brand.tagline}</p>
 
-          <div>
-            <h4 className="mb-4 text-sm font-medium uppercase">Safe &amp; Secure Payment</h4>
-            <div className="flex gap-1.5 text-3xl text-neutral-800">
-              {payments.map((Icon, i) => (
-                <Icon key={i} />
-              ))}
-            </div>
-
-            <h4 className="mb-3 mt-8 text-sm font-medium uppercase">Follow Us</h4>
-            <div className="flex gap-4 text-xl">
-              {socials.map((Icon, i) => (
-                <a key={i} href="#" aria-label="Social link">
-                  <Icon />
+          <ul className="mt-5 space-y-2 text-sm">
+            {settings?.contactEmail && (
+              <li>
+                <a
+                  href={`mailto:${settings.contactEmail}`}
+                  className="flex items-center gap-2 hover:text-gold"
+                >
+                  <LuMail className="h-4 w-4 shrink-0" aria-hidden />
+                  <span className="break-all">{settings.contactEmail}</span>
                 </a>
-              ))}
-            </div>
+              </li>
+            )}
+            {settings?.contactPhone && (
+              <li>
+                <a
+                  href={`tel:${settings.contactPhone.replace(/[^\d+]/g, "")}`}
+                  className="flex items-center gap-2 hover:text-gold"
+                >
+                  <LuPhone className="h-4 w-4 shrink-0" aria-hidden />
+                  {settings.contactPhone}
+                </a>
+              </li>
+            )}
+            {chat && (
+              <li>
+                <a
+                  href={chat}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-2 hover:text-gold"
+                >
+                  <FaWhatsapp className="h-4 w-4 shrink-0" aria-hidden />
+                  Chat on WhatsApp
+                </a>
+              </li>
+            )}
+          </ul>
 
-            <div className="mt-8 grid grid-cols-2 gap-4">
-              <div className="border-r border-neutral-300 pr-4">
-                <h4 className="mb-3 text-sm font-medium uppercase">Get in touch</h4>
-                <p className="text-sm">{brand.phone}</p>
-              </div>
-              <div>
-                <h4 className="mb-3 text-sm font-medium uppercase">Email us on</h4>
-                <p className="break-all text-sm">{brand.email}</p>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div className="space-y-4 border-t border-neutral-200 py-6">
-          {footerLinkGroups.map((g) => (
-            <div key={g.title}>
-              <h5 className="mb-1 text-sm font-medium uppercase">{g.title}</h5>
-              <ul className="flex flex-wrap text-[13px]">
-                {g.links.map((l) => (
-                  <li
-                    key={l}
-                    className="border-l border-neutral-300 px-2.5 first:border-l-0 first:pl-0"
+          {socials.length > 0 && (
+            <ul className="mt-5 flex gap-3">
+              {socials.map(({ label, href, icon: Icon }) => (
+                <li key={label}>
+                  <a
+                    href={href}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    aria-label={label}
+                    className="flex h-10 w-10 items-center justify-center border border-line bg-white hover:border-gold hover:text-gold"
                   >
-                    <a href="#" className="hover:text-gold">{l}</a>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ))}
+                    <Icon className="h-4 w-4" />
+                  </a>
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
 
-        <div className="grid grid-cols-2 gap-4 py-6 lg:grid-cols-4">
-          {perks.map(({ icon: Icon, lines }) => (
-            <div key={lines.join()} className="flex items-center gap-4">
-              <Icon className="h-7 w-7 shrink-0 stroke-1" />
-              <p className="text-base leading-tight">
-                {lines.map((line) => (
-                  <span key={line} className="block">{line}</span>
-                ))}
-              </p>
-            </div>
-          ))}
-        </div>
-
-        <p className="pb-6 text-sm">
-          <span className="font-medium">We Ship Across the World</span>
-          <span className="ml-3 text-neutral-600">{shipCountries.join(", ")}</span>
-        </p>
+        {columns.map((column) => (
+          <FooterColumn key={column.id} title={column.label} links={column.children} />
+        ))}
+        {loose.length > 0 && <FooterColumn title="More" links={loose} />}
       </div>
 
-      <div className="border-t border-neutral-200 py-4 text-center text-sm text-neutral-500">
-        © {new Date().getFullYear()} {brand.name}. All rights reserved.
+      <div className="border-t border-line px-4 py-4 text-center text-xs text-muted">
+        © {new Date().getFullYear()} {storeName}. All rights reserved.
       </div>
-
-      <FloatingActions />
     </footer>
+  );
+}
+
+function FooterColumn({ title, links }: { title: string; links: PublicMenuItem[] }) {
+  return (
+    <div>
+      <h2 className="mb-4 text-sm font-medium uppercase tracking-widest">{title}</h2>
+      <ul className="space-y-2.5 text-sm">
+        {links
+          .filter((link) => link.href)
+          .map((link) => (
+            <li key={link.id}>
+              <MenuLink href={link.href!} className="hover:text-gold">
+                {link.label}
+              </MenuLink>
+            </li>
+          ))}
+      </ul>
+    </div>
   );
 }

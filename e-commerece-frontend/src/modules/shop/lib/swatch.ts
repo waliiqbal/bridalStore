@@ -1,0 +1,36 @@
+// A small coloured dot next to a colour name. Only for common names; any other colour
+// simply shows its name without a dot.
+const SWATCHES: Record<string, string> = {
+  ivory: "#f5efe0",
+  cream: "#efe4cc",
+  white: "#ffffff",
+  black: "#1a1a1a",
+  grey: "#8a8a8a",
+  gray: "#8a8a8a",
+  silver: "#b8bcc2",
+  gold: "#c9a24b",
+  champagne: "#e8d3a8",
+  beige: "#d9c4a0",
+  brown: "#6b4a32",
+  red: "#c0182f",
+  maroon: "#5e1a2b",
+  burgundy: "#6d1a32",
+  wine: "#6d1f3a",
+  pink: "#e58aa3",
+  blush: "#f0c0c8",
+  "rose gold": "#c98a8a",
+  peach: "#f1b894",
+  orange: "#e8742a",
+  mustard: "#c9962b",
+  yellow: "#f1cf3a",
+  green: "#2f8a4f",
+  mint: "#a8dcc0",
+  emerald: "#0b6e4f",
+  teal: "#1f7a7a",
+  blue: "#2f5fb8",
+  navy: "#1d2b53",
+  purple: "#6a3d8f",
+  lilac: "#b9a2d8",
+};
+
+export const swatchFor = (colour: string): string | null => SWATCHES[colour.trim().toLowerCase()] ?? null;

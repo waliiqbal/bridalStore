@@ -1,5 +1,9 @@
 import type { Metadata } from "next";
 import { Geist, Playfair_Display } from "next/font/google";
+import { brand } from "@/config/brand";
+import { env } from "@/config/env";
+import { getSettings } from "@/modules/shop/api/shop.api";
+import { jsonLdString } from "@/modules/shop/lib/seo";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -12,18 +16,38 @@ const playfair = Playfair_Display({
   subsets: ["latin"],
 });
 
-export const metadata: Metadata = {
-  title: "Malaikah Bridal Studio",
-  description: "Bridal and festive wear, delivered worldwide",
-};
+// The store name comes from Settings in the admin, so renaming the store there renames every page.
+export async function generateMetadata(): Promise<Metadata> {
+  const settings = await getSettings().catch(() => null);
+  const name = settings?.storeName ?? brand.name;
+  return {
+    metadataBase: new URL(env.siteUrl),
+    title: { default: `${name} | Pakistani bridal & festive wear`, template: `%s | ${name}` },
+    description: brand.tagline,
+    openGraph: { siteName: name, type: "website" },
+  };
+}
 
-export default function RootLayout({ children }: LayoutProps<"/">) {
+export default async function RootLayout({ children }: LayoutProps<"/">) {
+  const settings = await getSettings().catch(() => null);
+
+  // Tells Google who we are (the "Organization" the brief asks for)
+  const organization = {
+    "@context": "https://schema.org",
+    "@type": "Organization",
+    name: settings?.storeName ?? brand.name,
+    url: env.siteUrl,
+    email: settings?.contactEmail ?? undefined,
+    telephone: settings?.contactPhone ?? undefined,
+    sameAs: [settings?.instagramUrl, settings?.facebookUrl, settings?.tiktokUrl].filter(Boolean),
+  };
+
   return (
-    <html
-      lang="en"
-      className={`${geistSans.variable} ${playfair.variable} h-full antialiased`}
-    >
-      <body className="min-h-full flex flex-col">{children}</body>
+    <html lang="en" className={`${geistSans.variable} ${playfair.variable} h-full antialiased`}>
+      <body className="flex min-h-full flex-col">
+        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLdString(organization) }} />
+        {children}
+      </body>
     </html>
   );
 }
