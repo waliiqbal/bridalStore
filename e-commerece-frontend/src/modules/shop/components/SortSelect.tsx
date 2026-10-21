@@ -14,6 +14,8 @@ export function SortSelect({ options, current }: { options: SortChoice[]; curren
     <label className="flex items-center gap-2 text-sm">
       <span className="hidden text-muted sm:inline">Sort by</span>
       <select
+        // The visible "Sort by" is hidden on phones, so the dropdown names itself
+        aria-label="Sort products"
         value={current}
         onChange={(event) => {
           const choice = options.find((option) => option.value === event.target.value);

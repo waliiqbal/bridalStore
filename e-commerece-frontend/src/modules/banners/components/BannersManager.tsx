@@ -1,5 +1,6 @@
 "use client";
 
+import { formatDateTime } from "@/shared/lib/date";
 import { useState } from "react";
 import Image from "next/image";
 import { LuPencil, LuPlus, LuTrash2 } from "react-icons/lu";
@@ -10,7 +11,7 @@ import { useAdminQuery } from "@/shared/admin/hooks";
 import { Badge, EmptyState, Notice, PageHeader, Spinner } from "@/shared/admin/Layout";
 import { ReorderList } from "@/shared/admin/ReorderList";
 import { deleteBanner, listBanners, reorderBanners } from "../api/banners.api";
-import { bannerStatus, formatWhen, placementLabel } from "../lib/banner-form";
+import { bannerStatus, placementLabel } from "../lib/banner-form";
 import type { AdminBanner } from "../types/banners";
 import { BannerEditor } from "./BannerEditor";
 
@@ -121,7 +122,7 @@ export function BannersManager() {
                         <p className="truncate font-medium">{banner.title || "No headline"}</p>
                         <p className="truncate text-sm text-muted">
                           {banner.startsAt || banner.endsAt
-                            ? `${banner.startsAt ? formatWhen(banner.startsAt) : "Now"} → ${banner.endsAt ? formatWhen(banner.endsAt) : "no end date"}`
+                            ? `${banner.startsAt ? formatDateTime(banner.startsAt) : "Now"} → ${banner.endsAt ? formatDateTime(banner.endsAt) : "no end date"}`
                             : "Shows all the time"}
                         </p>
                       </div>

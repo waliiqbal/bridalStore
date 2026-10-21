@@ -1,4 +1,6 @@
-// Development seed. Safe to run repeatedly: every write is an upsert or
+// Seed. On a live shop run it with SEED_SAMPLE_PRODUCTS=false: you then get the owner account,
+// settings, currencies, shipping, menus, the homepage, and the starting categories and filters,
+// but none of the sample products. Safe to run repeatedly: every write is an upsert or
 // "create if missing", and existing rows are never overwritten (so values the
 // owner edits in admin — rates, settings, passwords — survive a re-seed).
 import 'dotenv/config';
@@ -336,7 +338,8 @@ async function main() {
   await seedAdmin();
   const attributeIds = await seedAttributes();
   const categoryIds = await seedCategories();
-  await seedProducts(categoryIds, attributeIds);
+  // The sample dresses are for development and demos only
+  if (process.env.SEED_SAMPLE_PRODUCTS !== 'false') await seedProducts(categoryIds, attributeIds);
 
   const counts = {
     currencies: await prisma.currency.count(),

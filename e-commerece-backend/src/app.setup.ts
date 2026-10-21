@@ -3,6 +3,8 @@ import { INestApplication, ValidationPipe } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import type { NestExpressApplication } from '@nestjs/platform-express';
 import cookieParser from 'cookie-parser';
+import helmet from 'helmet';
+import { setCookieDomain } from './common/cookies.js';
 import { AllExceptionsFilter } from './common/filters/http-exception.filter.js';
 import type { Env } from './config/env.validation.js';
 
@@ -13,6 +15,12 @@ export function configureApp(app: INestApplication): INestApplication {
   // Behind a load balancer, read the client IP from X-Forwarded-For (rate limits)
   const trustProxy = config.get('TRUST_PROXY', { infer: true });
   if (trustProxy > 0) (app as NestExpressApplication).set('trust proxy', trustProxy);
+
+  setCookieDomain(config.get('COOKIE_DOMAIN', { infer: true }));
+
+  // Standard safety headers on every answer. Uploaded pictures (local storage driver) are shown
+  // on the website, which is a different address, so they must be allowed across sites.
+  app.use(helmet({ crossOriginResourcePolicy: { policy: 'cross-origin' } }));
 
   app.setGlobalPrefix('api');
   app.use(cookieParser());
@@ -31,19 +39,16 @@ export function configureApp(app: INestApplication): INestApplication {
 
   // Local storage driver: uploaded images are served by the API itself.
   if (config.get('STORAGE_DRIVER', { infer: true }) === 'local') {
-    (app as NestExpressApplication).useStaticAssets(
-      resolve(config.get('UPLOADS_DIR', { infer: true })),
-      {
-        prefix: '/uploads/',
-        index: false,
-        dotfiles: 'deny',
-        // Missing files fall through to Nest's normal JSON 404
-        fallthrough: true,
-        maxAge: '365d',
-        immutable: true,
-        setHeaders: (res) => res.setHeader('X-Content-Type-Options', 'nosniff'),
-      },
-    );
+    (app as NestExpressApplication).useStaticAssets(resolve(config.get('UPLOADS_DIR', { infer: true })), {
+      prefix: '/uploads/',
+      index: false,
+      dotfiles: 'deny',
+      // Missing files fall through to Nest's normal JSON 404
+      fallthrough: true,
+      maxAge: '365d',
+      immutable: true,
+      setHeaders: (res) => res.setHeader('X-Content-Type-Options', 'nosniff'),
+    });
   }
   return app;
 }

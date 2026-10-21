@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Image from "next/image";
 import { LuChevronLeft, LuChevronRight } from "react-icons/lu";
+import { ArtDirectedImage } from "@/shared/components/ArtDirectedImage";
 import { MenuLink } from "@/shared/layouts/MenuLink";
 
 export interface HeroSlide {
@@ -20,6 +20,9 @@ export interface HeroSlide {
 }
 
 const ROTATE_MS = 6500;
+// The next slide's picture starts downloading this long after the current one appears, so the
+// first picture (the biggest thing on the page) never has to share the connection.
+const PRELOAD_NEXT_MS = 2500;
 
 // The big picture(s) at the top of the homepage. One slide stays still; several slide on their own
 // every few seconds (paused while you point at it, and never moving for people who asked their
@@ -27,7 +30,19 @@ const ROTATE_MS = 6500;
 export function HeroSlider({ slides }: { slides: HeroSlide[] }) {
   const [index, setIndex] = useState(0);
   const [paused, setPaused] = useState(false);
+  // Slides whose pictures have been added to the page. Only the first one at the start.
+  const [loaded, setLoaded] = useState<ReadonlySet<number>>(() => new Set([0]));
   const many = slides.length > 1;
+
+  // Whatever slide is showing must have its picture
+  if (!loaded.has(index)) setLoaded(new Set(loaded).add(index));
+
+  useEffect(() => {
+    if (!many) return;
+    const next = (index + 1) % slides.length;
+    const timer = setTimeout(() => setLoaded((current) => new Set(current).add(next)), PRELOAD_NEXT_MS);
+    return () => clearTimeout(timer);
+  }, [index, many, slides.length]);
 
   useEffect(() => {
     if (!many || paused) return;
@@ -60,30 +75,18 @@ export function HeroSlider({ slides }: { slides: HeroSlide[] }) {
               role="group"
               aria-roledescription="slide"
               aria-label={`${i + 1} of ${slides.length}`}
-              aria-hidden={!active}
-              className={`absolute inset-0 transition-opacity duration-700 ${active ? "opacity-100" : "pointer-events-none opacity-0"}`}
+              // `inert` takes hidden slides out of the tab order and away from screen readers
+              inert={!active}
+              className={`absolute inset-0 ${active ? "opacity-100" : "pointer-events-none opacity-0"}`}
             >
-              {slide.mobileImageUrl ? (
-                <>
-                  <Image
-                    src={slide.mobileImageUrl}
-                    alt=""
-                    fill
-                    priority={i === 0}
-                    sizes="100vw"
-                    className="object-cover sm:hidden"
-                  />
-                  <Image
-                    src={slide.imageUrl}
-                    alt=""
-                    fill
-                    priority={i === 0}
-                    sizes="100vw"
-                    className="hidden object-cover sm:block"
-                  />
-                </>
-              ) : (
-                <Image src={slide.imageUrl} alt="" fill priority={i === 0} sizes="100vw" className="object-cover" />
+              {loaded.has(i) && (
+                <ArtDirectedImage
+                  desktopSrc={slide.imageUrl}
+                  mobileSrc={slide.mobileImageUrl}
+                  breakpoint={640}
+                  eager={i === 0}
+                  className="object-cover"
+                />
               )}
 
               <div
@@ -97,19 +100,27 @@ export function HeroSlider({ slides }: { slides: HeroSlide[] }) {
 
               <div
                 className={`absolute inset-0 flex items-end px-6 pb-12 sm:items-center sm:px-14 sm:pb-0 lg:px-24 ${
-                  align === "center" ? "justify-center text-center" : align === "right" ? "justify-end text-right" : ""
+                  align === "center"
+                    ? "justify-center text-center"
+                    : align === "right"
+                      ? "justify-end text-right"
+                      : ""
                 }`}
               >
                 <div className={`max-w-xl ${light ? "text-white" : "text-foreground"}`}>
                   {slide.title && (
-                    <h2 className="font-serif text-4xl font-bold leading-tight sm:text-5xl lg:text-6xl">{slide.title}</h2>
+                    <h2 className="font-serif text-4xl font-bold leading-tight sm:text-5xl lg:text-6xl">
+                      {slide.title}
+                    </h2>
                   )}
                   {slide.subtitle && <p className="mt-3 text-base sm:text-lg">{slide.subtitle}</p>}
                   {slide.buttonText && slide.linkUrl && (
                     <MenuLink
                       href={slide.linkUrl}
                       className={`mt-6 inline-block px-8 py-3.5 text-sm font-medium uppercase tracking-wider transition ${
-                        light ? "bg-white text-black hover:bg-gold hover:text-white" : "bg-black text-white hover:bg-gold"
+                        light
+                          ? "bg-white text-black hover:bg-gold hover:text-white"
+                          : "bg-black text-white hover:bg-gold"
                       }`}
                     >
                       {slide.buttonText}
@@ -140,7 +151,7 @@ export function HeroSlider({ slides }: { slides: HeroSlide[] }) {
           >
             <LuChevronRight className="h-5 w-5" />
           </button>
-          <div className="absolute inset-x-0 bottom-4 flex justify-center gap-2">
+          <div className="absolute inset-x-0 bottom-1 flex justify-center">
             {slides.map((slide, i) => (
               <button
                 key={slide.id}
@@ -148,8 +159,15 @@ export function HeroSlider({ slides }: { slides: HeroSlide[] }) {
                 aria-label={`Show slide ${i + 1}`}
                 aria-current={i === index}
                 onClick={() => setIndex(i)}
-                className={`h-2.5 rounded-full transition-all ${i === index ? "w-8 bg-white" : "w-2.5 bg-white/60 hover:bg-white/80"}`}
-              />
+                // The button is 24px (an easy target for a finger); the dot you see is smaller
+                className="group flex h-6 w-6 items-center justify-center"
+              >
+                <span
+                  className={`block h-2.5 rounded-full transition-all ${
+                    i === index ? "w-8 bg-white" : "w-2.5 bg-white/60 group-hover:bg-white/80"
+                  }`}
+                />
+              </button>
             ))}
           </div>
         </>

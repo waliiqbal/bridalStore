@@ -4,6 +4,7 @@ import { brand } from "@/config/brand";
 import { env } from "@/config/env";
 import { getSettings } from "@/modules/shop/api/shop.api";
 import { jsonLdString } from "@/modules/shop/lib/seo";
+import { TrackingScripts } from "@/modules/tracking/components/TrackingScripts";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -47,6 +48,10 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
       <body className="flex min-h-full flex-col">
         <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLdString(organization) }} />
         {children}
+        <TrackingScripts
+          metaPixelId={settings?.metaPixelId ?? null}
+          googleAnalyticsId={settings?.googleAnalyticsId ?? null}
+        />
       </body>
     </html>
   );

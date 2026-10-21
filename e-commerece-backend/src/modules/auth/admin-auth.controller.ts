@@ -1,7 +1,8 @@
 import { Body, Controller, Get, HttpCode, Post, Res, UseGuards } from '@nestjs/common';
 import { Throttle, ThrottlerGuard } from '@nestjs/throttler';
 import { ConfigService } from '@nestjs/config';
-import type { CookieOptions, Response } from 'express';
+import type { Response } from 'express';
+import { sessionCookieOptions } from '../../common/cookies.js';
 import type { Env } from '../../config/env.validation.js';
 import { AuthService } from './auth.service.js';
 import { ADMIN_COOKIE, type AdminProfile } from './auth.types.js';
@@ -26,17 +27,14 @@ export class AdminAuthController {
   ): Promise<{ admin: AdminProfile }> {
     const { token, admin } = await this.auth.login(dto.email, dto.password);
     const days = this.config.get('ADMIN_SESSION_DAYS', { infer: true });
-    res.cookie(ADMIN_COOKIE, token, {
-      ...this.cookieOptions(),
-      maxAge: days * 24 * 60 * 60 * 1000,
-    });
+    res.cookie(ADMIN_COOKIE, token, sessionCookieOptions(this.production(), days));
     return { admin };
   }
 
   @Post('logout')
   @HttpCode(200)
   logout(@Res({ passthrough: true }) res: Response): { success: true } {
-    res.clearCookie(ADMIN_COOKIE, this.cookieOptions());
+    res.clearCookie(ADMIN_COOKIE, sessionCookieOptions(this.production()));
     return { success: true };
   }
 
@@ -45,12 +43,7 @@ export class AdminAuthController {
     return { admin };
   }
 
-  private cookieOptions(): CookieOptions {
-    return {
-      httpOnly: true,
-      sameSite: 'lax',
-      secure: this.config.get('NODE_ENV', { infer: true }) === 'production',
-      path: '/',
-    };
+  private production(): boolean {
+    return this.config.get('NODE_ENV', { infer: true }) === 'production';
   }
 }

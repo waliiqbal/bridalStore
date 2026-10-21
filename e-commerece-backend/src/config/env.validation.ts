@@ -15,6 +15,15 @@ export interface CloudinaryEnv {
   apiSecret: string;
 }
 
+export interface SmtpEnv {
+  host: string;
+  port: number;
+  // true = connect with TLS straight away (usually port 465); false = upgrade with STARTTLS (587)
+  secure: boolean;
+  user?: string;
+  password?: string;
+}
+
 export interface Env {
   NODE_ENV: 'development' | 'production' | 'test';
   PORT: number;
@@ -26,8 +35,14 @@ export interface Env {
   CUSTOMER_SESSION_DAYS: number;
   // First FRONTEND_URL entry; used to build links in emails
   STOREFRONT_URL: string;
-  MAIL_DRIVER: 'console' | 'provider';
+  MAIL_DRIVER: 'console' | 'smtp' | 'provider';
   MAIL_FROM: string;
+  // Parent domain for sign-in cookies, e.g. ".example.com" (empty = this host only)
+  COOKIE_DOMAIN?: string;
+  // Needed when MAIL_DRIVER=provider (Resend)
+  RESEND_API_KEY?: string;
+  // Needed when MAIL_DRIVER=smtp
+  SMTP?: SmtpEnv;
   // Number of trusted reverse proxies in front of the API (for client IPs)
   TRUST_PROXY: number;
   // Background jobs (expired reservations, old carts). Off in tests.
@@ -43,7 +58,7 @@ export interface Env {
 }
 
 const NODE_ENVS = ['development', 'production', 'test'] as const;
-const MAIL_DRIVERS = ['console', 'provider'] as const;
+const MAIL_DRIVERS = ['console', 'smtp', 'provider'] as const;
 const STORAGE_DRIVERS = ['local', 's3', 'cloudinary'] as const;
 const isHttpUrl = (v: string) => /^https?:\/\/[^\s]+$/.test(v);
 const trimSlash = (v: string) => v.replace(/\/+$/, '');
@@ -94,10 +109,38 @@ export function validateEnv(raw: Record<string, unknown>): Env {
     errors.push('CUSTOMER_SESSION_DAYS must be a positive integer');
   }
 
+  const cookieDomain = str('COOKIE_DOMAIN');
+  if (cookieDomain && !/^\.?[a-z0-9-]+(\.[a-z0-9-]+)+$/i.test(cookieDomain)) {
+    errors.push('COOKIE_DOMAIN must be a domain like .example.com (no http://, no port, no path)');
+  }
+
   // ── Email ──
   const mailDriver = str('MAIL_DRIVER') || 'console';
   if (!(MAIL_DRIVERS as readonly string[]).includes(mailDriver)) {
     errors.push(`MAIL_DRIVER must be one of: ${MAIL_DRIVERS.join(', ')}`);
+  }
+  const resendKey = str('RESEND_API_KEY');
+  if (mailDriver === 'provider' && !resendKey) {
+    errors.push('RESEND_API_KEY is required when MAIL_DRIVER=provider');
+  }
+  let smtp: SmtpEnv | undefined;
+  if (mailDriver === 'smtp') {
+    const host = str('SMTP_HOST');
+    const port = Number(str('SMTP_PORT') || 587);
+    const user = str('SMTP_USER');
+    const password = str('SMTP_PASSWORD');
+    if (!host) errors.push('SMTP_HOST is required when MAIL_DRIVER=smtp');
+    if (!Number.isInteger(port) || port <= 0) errors.push('SMTP_PORT must be a positive integer');
+    if (!!user !== !!password) errors.push('SMTP_USER and SMTP_PASSWORD must be set together');
+    const secureRaw = (str('SMTP_SECURE') || (port === 465 ? 'true' : 'false')).toLowerCase();
+    if (!['true', 'false'].includes(secureRaw)) errors.push('SMTP_SECURE must be true or false');
+    smtp = {
+      host,
+      port,
+      secure: secureRaw === 'true',
+      user: user || undefined,
+      password: password || undefined,
+    };
   }
   const mailFrom = str('MAIL_FROM') || 'Malikah Bridal Studio <hello@example.com>';
 
@@ -190,6 +233,9 @@ export function validateEnv(raw: Record<string, unknown>): Env {
     STOREFRONT_URL: trimSlash(frontendUrl.split(',')[0].trim()),
     MAIL_DRIVER: mailDriver as Env['MAIL_DRIVER'],
     MAIL_FROM: mailFrom,
+    RESEND_API_KEY: resendKey || undefined,
+    COOKIE_DOMAIN: cookieDomain || undefined,
+    SMTP: smtp,
     TRUST_PROXY: trustProxy,
     SCHEDULER_ENABLED: schedulerRaw === 'true',
     PAYMENTS: payments,

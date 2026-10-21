@@ -297,6 +297,12 @@ describe('Uploads, content, redirects & revalidation (e2e)', () => {
         'whatsappNumber',
       ].sort(),
     );
+    // The owner can switch the "overseas orders are GST-free" setting; it stays private
+    await admin.patch('/api/admin/settings').send({ removeGstForExports: true }).expect(200);
+    expect((await admin.get('/api/admin/settings').expect(200)).body.removeGstForExports).toBe(true);
+    expect((await http().get('/api/settings').expect(200)).body).not.toHaveProperty('removeGstForExports');
+    await admin.patch('/api/admin/settings').send({ removeGstForExports: null }).expect(400);
+    await admin.patch('/api/admin/settings').send({ removeGstForExports: false }).expect(200);
     await storefront.waitForTag('settings');
 
     // Category page: same listing and facets as collections, including sub-categories

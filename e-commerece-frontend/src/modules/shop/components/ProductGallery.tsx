@@ -1,8 +1,12 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
+import dynamic from "next/dynamic";
 import Image from "next/image";
-import { LuChevronLeft, LuChevronRight, LuX, LuZoomIn } from "react-icons/lu";
+import { LuChevronLeft, LuChevronRight, LuZoomIn } from "react-icons/lu";
+
+// The full-screen viewer is only needed when someone taps the photo, so its code loads then
+const GalleryLightbox = dynamic(() => import("./GalleryLightbox"));
 
 interface GalleryImage {
   url: string;
@@ -28,23 +32,6 @@ export function ProductGallery({
   const count = images.length;
 
   const go = (step: number) => onIndexChange((index + step + count) % count);
-
-  // Full-screen view: keyboard control, and no scrolling of the page behind it
-  useEffect(() => {
-    if (!fullScreen) return;
-    const onKey = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setFullScreen(false);
-      if (event.key === "ArrowLeft") onIndexChange((index - 1 + count) % count);
-      if (event.key === "ArrowRight") onIndexChange((index + 1) % count);
-    };
-    document.addEventListener("keydown", onKey);
-    const previous = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    return () => {
-      document.removeEventListener("keydown", onKey);
-      document.body.style.overflow = previous;
-    };
-  }, [fullScreen, index, count, onIndexChange]);
 
   if (count === 0) {
     return (
@@ -107,7 +94,8 @@ export function ProductGallery({
             src={current.url}
             alt={label}
             fill
-            priority
+            loading="eager"
+            fetchPriority="high"
             sizes="(min-width: 1024px) 45vw, (min-width: 768px) 55vw, 100vw"
             className="object-cover transition-transform duration-200 ease-out"
             style={{
@@ -153,49 +141,13 @@ export function ProductGallery({
       </div>
 
       {fullScreen && (
-        <div
-          role="dialog"
-          aria-modal="true"
-          aria-label={`${name}: photos`}
-          className="fixed inset-0 z-[60] bg-black/95"
-        >
-          <button
-            type="button"
-            aria-label="Close photos"
-            onClick={() => setFullScreen(false)}
-            className="absolute right-4 top-4 z-10 flex h-11 w-11 items-center justify-center rounded-full bg-white/10 text-white hover:bg-white/20"
-          >
-            <LuX className="h-6 w-6" />
-          </button>
-          <div className="absolute inset-0 p-4 sm:p-10" onClick={() => setFullScreen(false)}>
-            <div className="relative h-full w-full">
-              <Image src={current.url} alt={label} fill sizes="100vw" className="object-contain" />
-            </div>
-          </div>
-          {count > 1 && (
-            <>
-              <button
-                type="button"
-                aria-label="Previous photo"
-                onClick={() => go(-1)}
-                className="absolute left-3 top-1/2 flex h-12 w-12 -translate-y-1/2 items-center justify-center rounded-full bg-white/10 text-white hover:bg-white/20"
-              >
-                <LuChevronLeft className="h-6 w-6" />
-              </button>
-              <button
-                type="button"
-                aria-label="Next photo"
-                onClick={() => go(1)}
-                className="absolute right-3 top-1/2 flex h-12 w-12 -translate-y-1/2 items-center justify-center rounded-full bg-white/10 text-white hover:bg-white/20"
-              >
-                <LuChevronRight className="h-6 w-6" />
-              </button>
-              <p className="absolute bottom-4 left-1/2 -translate-x-1/2 text-sm text-white/80">
-                {index + 1} / {count}
-              </p>
-            </>
-          )}
-        </div>
+        <GalleryLightbox
+          images={images}
+          index={index}
+          onIndexChange={onIndexChange}
+          name={name}
+          onClose={() => setFullScreen(false)}
+        />
       )}
     </div>
   );

@@ -179,6 +179,10 @@ model Product {
   images         ProductImage[]
   variants       ProductVariant[]
   wishlistItems  WishlistItem[]
+  reviews        Review[]
+  // Kept up to date when reviews are approved, so cards and Google can show the stars cheaply
+  ratingCount    Int                     @default(0)
+  ratingTotal    Int                     @default(0)
   collections    CollectionProduct[]
   attributes     ProductAttributeValue[]
   createdAt      DateTime                @default(now())
@@ -356,6 +360,7 @@ model Customer {
   addresses           Address[]
   orders              Order[]
   wishlist            WishlistItem[]
+  reviews             Review[]
   carts               Cart[]
   // Admin can deactivate a customer; deactivated customers are signed out
   isActive            Boolean              @default(true)
@@ -774,6 +779,13 @@ model StoreSettings {
   googleAnalyticsId   String?
   // When true, orders shipped to zones without GST pay prices with the GST portion removed
   removeGstForExports Boolean  @default(false)
+  // Emails to customers (the owner can switch each one off)
+  sendOrderEmails     Boolean  @default(true)
+  sendShippingEmails  Boolean  @default(true)
+  // Extra line at the bottom of every customer email, e.g. opening hours
+  emailFooterNote     String?
+  // When false, new reviews wait for the owner to approve them
+  autoApproveReviews  Boolean  @default(false)
   updatedAt           DateTime @updatedAt
 }
 
@@ -823,4 +835,38 @@ model Enquiry {
 
   @@index([status, createdAt])
   @@index([eventDate])
+}
+
+
+// ───────────────────────── Reviews ─────────────────────────
+
+enum ReviewStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+model Review {
+  id          String       @id @default(cuid())
+  productId   String
+  product     Product      @relation(fields: [productId], references: [id], onDelete: Cascade)
+  // Kept (set to null) if the customer account is removed
+  customerId  String?
+  customer    Customer?    @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  rating      Int // 1 to 5
+  title       String?
+  body        String
+  authorName  String
+  // True when the customer has a paid order that contains this product
+  isVerified  Boolean      @default(false)
+  status      ReviewStatus @default(PENDING)
+  // Public answer from the shop
+  shopReply   String?
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  // One review per customer per product
+  @@unique([productId, customerId])
+  @@index([productId, status, createdAt])
+  @@index([status, createdAt])
 }

@@ -1,5 +1,6 @@
-import Image from "next/image";
+import { ProductGrid } from "./ProductGrid";
 import Link from "next/link";
+import { ArtDirectedImage } from "@/shared/components/ArtDirectedImage";
 import { buildHref, hasFilters, withSort, type ListingQuery } from "../lib/listing-query";
 import { breadcrumbJsonLd, jsonLdString } from "../lib/seo";
 import type { ListingResponse, SortKey } from "../types/shop";
@@ -8,7 +9,6 @@ import { Breadcrumbs, type Crumb } from "./Breadcrumbs";
 import { FilterPanel } from "./FilterPanel";
 import { FilterShell } from "./FilterShell";
 import { Pagination } from "./Pagination";
-import { ProductCard } from "./ProductCard";
 import { ReadMore } from "./ReadMore";
 import { SortSelect } from "./SortSelect";
 
@@ -84,28 +84,13 @@ export function ListingPage({
 
       {bannerUrl ? (
         <div className="relative mb-6 flex h-44 items-end overflow-hidden bg-cream sm:h-64">
-          {mobileBannerUrl ? (
-            <>
-              <Image
-                src={mobileBannerUrl}
-                alt=""
-                fill
-                priority
-                sizes="100vw"
-                className="object-cover md:hidden"
-              />
-              <Image
-                src={bannerUrl}
-                alt=""
-                fill
-                priority
-                sizes="100vw"
-                className="hidden object-cover md:block"
-              />
-            </>
-          ) : (
-            <Image src={bannerUrl} alt="" fill priority sizes="100vw" className="object-cover" />
-          )}
+          {/* The banner is the biggest thing at the top of the page, so it loads first */}
+          <ArtDirectedImage
+            desktopSrc={bannerUrl}
+            mobileSrc={mobileBannerUrl}
+            eager
+            className="object-cover"
+          />
           <div
             aria-hidden
             className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/10 to-transparent"
@@ -168,13 +153,7 @@ export function ListingPage({
             )}
           </div>
         ) : (
-          <ul className="grid grid-cols-2 gap-x-3 gap-y-9 sm:grid-cols-3 sm:gap-x-4 xl:grid-cols-4">
-            {products.items.map((product, index) => (
-              <li key={product.id}>
-                <ProductCard product={product} priority={index < 4} />
-              </li>
-            ))}
-          </ul>
+          <ProductGrid products={products.items} variant="sidebar" eagerFirst={4} headingLevel={2} />
         )}
 
         <Pagination

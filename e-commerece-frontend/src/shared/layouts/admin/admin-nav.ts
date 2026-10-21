@@ -15,6 +15,7 @@ import {
   LuPackage,
   LuRuler,
   LuSettings,
+  LuStar,
   LuShoppingBag,
   LuTruck,
   LuUsers,
@@ -52,17 +53,18 @@ export const adminNav: AdminNavGroup[] = [
   {
     title: "Sales",
     items: [
-      { label: "Orders", href: "/admin/orders", icon: LuShoppingBag, ready: false },
+      { label: "Orders", href: "/admin/orders", icon: LuShoppingBag, ready: true },
       { label: "Enquiries", href: "/admin/enquiries", icon: LuInbox, ready: true },
-      { label: "Customers", href: "/admin/customers", icon: LuUsers, ready: false },
-      { label: "Coupons", href: "/admin/coupons", icon: LuBadgePercent, ready: false },
+      { label: "Customers", href: "/admin/customers", icon: LuUsers, ready: true },
+      { label: "Reviews", href: "/admin/reviews", icon: LuStar, ready: true },
+      { label: "Coupons", href: "/admin/coupons", icon: LuBadgePercent, ready: true },
     ],
   },
   {
     title: "Store setup",
     items: [
-      { label: "Shipping", href: "/admin/shipping", icon: LuTruck, ready: false },
-      { label: "Currencies", href: "/admin/currencies", icon: LuCoins, ready: false },
+      { label: "Shipping", href: "/admin/shipping", icon: LuTruck, ready: true },
+      { label: "Currencies", href: "/admin/currencies", icon: LuCoins, ready: true },
       { label: "Settings", href: "/admin/settings", icon: LuSettings, ready: true },
     ],
   },

@@ -1,3 +1,4 @@
+import { ProductGrid } from "../ProductGrid";
 import type { PublicSection } from "../../types/page";
 import { ProductCard } from "../ProductCard";
 import { ProductScroller } from "./ProductScroller";
@@ -16,13 +17,7 @@ export function ProductsBlock({ section }: { section: PublicSection }) {
     return (
       <section className="mx-auto w-full max-w-[1600px] px-4 lg:px-6">
         {header}
-        <ul className="grid grid-cols-2 gap-x-3 gap-y-9 sm:grid-cols-3 sm:gap-x-4 lg:grid-cols-4">
-          {products.map((product) => (
-            <li key={product.id}>
-              <ProductCard product={product} />
-            </li>
-          ))}
-        </ul>
+        <ProductGrid products={products} />
       </section>
     );
   }

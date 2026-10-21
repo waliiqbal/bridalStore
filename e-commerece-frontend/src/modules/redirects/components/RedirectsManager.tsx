@@ -1,5 +1,6 @@
 "use client";
 
+import { formatDate } from "@/shared/lib/date";
 import { useState, type FormEvent } from "react";
 import { LuArrowRight, LuPencil, LuPlus, LuSearch, LuTrash2 } from "react-icons/lu";
 import { LinkField } from "@/modules/pages/components/LinkField";
@@ -107,11 +108,7 @@ export function RedirectsManager() {
                   </p>
                   <p className="mt-0.5 text-xs text-muted">
                     Added{" "}
-                    {new Date(redirect.createdAt).toLocaleDateString("en-AU", {
-                      day: "numeric",
-                      month: "short",
-                      year: "numeric",
-                    })}
+                    {formatDate(redirect.createdAt)}
                   </p>
                 </div>
                 <div className="flex items-center gap-1.5">

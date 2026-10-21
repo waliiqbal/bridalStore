@@ -176,7 +176,11 @@ Payment routing rule:
 - Guest-checkout customers have no password. Registering with their email does **not** sign in: it emails a single-use "finish creating your account" link (same reset-token flow), so nobody can claim someone else's orders by typing their email. Reset tokens: random, stored as SHA-256 only, single use, 1 hour.
 - CSRF: `CsrfGuard` (global) rejects POST/PUT/PATCH/DELETE without an `X-Requested-With` header. Webhooks called by other servers use `@SkipCsrf()`. E2E tests use `api(app)` from `test/helpers/app.ts`, which adds it.
 - Rate limits (`@nestjs/throttler`, per IP, in memory): login 10/min (admin and customer), register 5/min, forgot-password 3/min. Only routes with `ThrottlerGuard` are limited. Set `TRUST_PROXY` behind a load balancer. With several API instances, switch to a Redis store.
-- Mail: inject `MAIL_SERVICE`. `MAIL_DRIVER=console` logs emails (with links) and keeps recent ones in memory for tests; the real provider comes in phase 7.
+- Security: `helmet` is on for every API answer (cross-origin pictures allowed). The website sets its own headers in `next.config.ts` (no CSP yet, see docs/DEPLOY.md). `COOKIE_DOMAIN` makes `sessionCookieOptions()` (the single source of cookie options, also used to clear cookies) set cookies for the parent domain, which the website's server needs when the API is on a subdomain.
+- Mail: inject `MAIL_SERVICE`. `MAIL_DRIVER=console` logs emails (with links) and keeps recent ones in memory for tests; `MAIL_DRIVER=smtp` sends through any SMTP server (nodemailer, `SMTP_*`); `MAIL_DRIVER=provider` sends real emails through Resend's HTTP API (`RESEND_API_KEY` required, `MAIL_FROM` must be on a domain verified in Resend). Shared layout/escaping in `mail/email-layout.ts`.
+- Order emails (`orders/order-emails.ts` pure templates + `order-emails.service.ts`): confirmation is sent after `markPaid` returns `PAID` (never for `ALREADY_PAID`, so a repeated webhook sends nothing), shipping email after the admin marks `SHIPPED`. Fire-and-forget, never throws, built only from the order snapshot. The owner can switch each off (`StoreSettings.sendOrderEmails`, `sendShippingEmails`) and add a footer line (`emailFooterNote`).
+- Reviews (`reviews/`): signed-in customers only, one per product (`@@unique([productId, customerId])`), `isVerified` when they have a paid order containing the product. New reviews are `PENDING` unless `StoreSettings.autoApproveReviews`. `Product.ratingCount/ratingTotal` are recomputed from APPROVED reviews on every change (`syncRating`, idempotent) and the `product:<slug>` tag is refreshed. Public: `GET/POST /api/products/:slug/reviews` (POST 10/min); the product detail has `rating: { count, average }`. Admin: `GET /api/admin/reviews[?status=&q=]`, `/counts`, `PATCH :id { status?, shopReply? }`, `DELETE :id`. Reviews are plain text (tags stripped), names shown as `Ayesha K.`.
+- Feeds (`feeds/`): `GET /api/feeds/sitemap` (published products, collections, categories, pages; the website builds `sitemap.xml` from it) and `GET /api/feeds/meta.csv` (Facebook/Instagram catalogue, one row per variant, AUD, `id` = SKU, `item_group_id` = product slug; `buildMetaFeed` in `meta-feed.ts`). Give the owner `<API>/api/feeds/meta.csv` to paste into Meta Commerce Manager.
 - Cart (`cart/`): httpOnly `cart_token` cookie, 30 days sliding. One cart per customer (`Cart.customerId` unique); the guest cart is merged on login/register (`planCartMerge`). Every read recalculates from the database. Lines are never dropped: each has `status` `OK | LIMITED | OUT_OF_STOCK | UNAVAILABLE` and `availableQuantity`; only `OK` lines count towards the subtotal, and any other line sets `canCheckout: false`. Max 10 per line, capped by stock (`capQuantity`). Every cart endpoint accepts `?currency=&country=&shippingRateId=` (without a rate, the zone's cheapest rate is used as an estimate, `shipping.isEstimate`). `POST/DELETE /api/cart/coupon`; an invalid code is rejected with its reason and never saved.
 - **Pricing (`pricing/pricing.ts` → `calculatePricing`) is the ONLY place totals are calculated.** It's pure (inputs incl. `now` passed in); `PricingService.loadContext()` loads currency, GST settings, zone + rates and coupon (pass the transaction client inside a transaction). Rules:
   - Line unit price = `convertAudCents(unit AUD)` (same as listings); line total = unit × quantity; subtotal = sum of OK lines.
@@ -222,8 +226,9 @@ Each module lives in `src/modules/<name>/`:
 | `uploads` | Image upload (sharp → WebP) to local disk or S3/R2; returns `{ url, width, height }` |
 | `redirects` | Old-slug redirects (automatic on slug change + admin CRUD), `resolve` for the storefront |
 | `revalidation` | Tells the Next.js storefront which cache tags to refresh after admin changes |
-| `mail` | `MailService` (console driver now; real provider, password-reset/order/shipping templates in phase 7) |
-| `feeds` | `sitemap.xml`, Meta product feed |
+| `mail` | `MailService` (console driver for development, Resend driver for real emails; order confirmation and shipping templates live in `orders/`) |
+| `reviews` | Product reviews and the owner's approval screen |
+| `feeds` | Sitemap data and the Meta product feed |
 | `enquiries` | "Find your outfit" lead form (the shop-window QR code opens `/enquiry?source=window`): public `GET /api/enquiries/options`, `POST /api/enquiries` (5/min per IP, honeypot field `website`); admin `GET/PATCH/DELETE /api/admin/enquiries`, `GET /api/admin/enquiries/counts`. Table `Enquiry` (status NEW → CONTACTED → BOOKED → CLOSED, private `adminNote`). Budget and outfit-type choices live in `enquiry-options.ts` (codes in the DB, labels on screen). Admin screen: Enquiries. No QR image is generated; the owner makes one from the link. |
 
 ### Conventions
@@ -253,7 +258,8 @@ Read `AGENTS.md` first: Next.js 16 has breaking changes. Check `node_modules/nex
   - Browser calls to cart/account/auth must use `credentials: 'include'` and send **`X-Requested-With: XMLHttpRequest` on every POST/PUT/PATCH/DELETE** (the API rejects them otherwise).
   - Server-side calls on behalf of a shopper (cart, account) must forward the `customer_token` and `cart_token` cookies and must not be cached.
 - `src/config/brand.ts` holds brand constants. `src/config/env.ts` is for typed env access; use it instead of reading `process.env` directly.
-- `src/store/`: Redux Toolkit is for **UI state only** (menus, drawers, selected currency). The cart is server data fetched from the API, not a Redux copy.
+- There is no global state library (Redux was removed: it was never used). Shopper and cart state live in `ShopperProvider` and `CartProvider` (React context); menus and drawers use local state. The cart is server data fetched from the API.
+- Shared building blocks to reuse, not copy: `shared/components/FormError` (red message box), `shared/lib/validators` (`EMAIL_PATTERN`, `PHONE_PATTERN`), `shared/lib/date` (`formatDate`, `formatDateTime`), `modules/shop/components/ProductGrid` (every grid of product cards).
 - Path alias `@/*` → `src/*`. Styling is Tailwind CSS v4.
 
 ### Storefront routes
@@ -263,9 +269,30 @@ Read `AGENTS.md` first: Next.js 16 has breaking changes. Check `node_modules/nex
 | `/` | Homepage, rendered from the `home` Page sections |
 | `/collections/[slug]` | Banner, intro, notice, filters, sort, paginated grid, SEO text with "Read more" |
 | `/categories/[slug]` | Same layout as a collection page, for a category and its sub-categories (`GET /api/categories/:slug`) |
-| `/products/[slug]` | Gallery with zoom, colour/size picker, size guide, price/sale price, stock, add to cart, wishlist |
+| `/products/[slug]` | Gallery with zoom, colour/size picker, size guide, price/sale price, stock, add to cart, wishlist, then customer reviews (server-rendered, tagged `product:<slug>`; the write-a-review form is the only client part) |
 | `/pages/[slug]` | CMS pages built from sections |
-| `/cart`, `/checkout`, `/account/*`, `/search` | Cart, checkout, customer account, search |
+| `/search?q=` | Search results (name and tags only; `GET /api/search`), `noindex` |
+| `/login`, `/register`, `/forgot-password` | Customer sign-in pages (`?next=` returns the shopper to the page they came from; `safeNext()` only allows addresses inside this site) |
+| `/account/reset-password`, `/account/set-password` | Pages the emailed links open (public) |
+| `/account/orders`, `/account/orders/[orderNumber]`, `/account/addresses`, `/account/profile` | Signed-in area (`app/account/(area)/layout.tsx` calls `requireCustomer`) |
+| `/wishlist` | Saved products (signed-in) |
+| `/cart` | The bag page (items, quantity buttons, discount code, summary). Header bag icon opens a slide-in panel (`CartDrawer`, lazy-loaded). |
+| `/checkout`, `/checkout/success?order=` | Contact, delivery address (saved or new), shipping, then payment; then the "thank you" page. |
+
+`/sitemap.xml` and `/robots.txt` are built by `app/sitemap.ts` and `app/robots.ts` (sitemap data from `GET /api/feeds/sitemap`; robots blocks admin, account, cart, checkout, login, search).
+
+**Bag and checkout (Phase 5).** The bag lives on the server; the browser never sends or decides a price. `CartProvider` (`modules/cart`) fetches it in the browser (a `cart_hint` cookie means anonymous visitors with an empty bag make no request) and every action (`add`, `setQuantity`, `remove`, coupon) is a `useCallback` so effects that use it don't loop. Checkout (`modules/checkout`): the summary is priced by `GET /api/cart?country=&shippingRateId=`; shipping choices come from `GET /api/shipping/options`; "Continue to payment" calls `POST /api/checkout` with an `Idempotency-Key` (new key only when the customer changes their details), which creates the unpaid order and holds the stock; `PaymentSection` then shows the methods the server allows (AUD → Square or PayPal, other currencies → Stripe or PayPal). Provider scripts (Stripe.js, Square Web Payments SDK, PayPal JS) are loaded only when the payment step opens (`loadScript`); card details never reach our server. After paying, the server asks the provider for the real status (`POST /api/payments/:order/confirm`); the browser's word is never trusted. `AddressFields` and `OrderDetailBody` are shared with the account pages.
+
+**Testing payments locally.** Without provider keys the server offers no payment methods (the order is created and held; the page says to contact us). To test the whole flow, run a second backend with `PAYMENTS_DRIVER=fake` (for example `PORT=3010 PAYMENTS_DRIVER=fake FRONTEND_URL=http://localhost:3002 node dist/main.js`) and a frontend started with `NEXT_PUBLIC_API_URL=http://localhost:3010/api` on port 3002. In fake mode Square charges a pretend card; Stripe and PayPal need real sandbox keys to be tried. Remove the test orders afterwards: paid or held orders keep their stock, so restore stock and `salesCount` when deleting them.
+
+**Public shop pages must not read cookies or headers** (no `cookies()`, `headers()`; `searchParams` only where truly needed, e.g. filters). That is what lets them be built once and served from cache (`x-nextjs-cache: HIT`, about 9 ms instead of about 270 ms). Two things that used to need cookies are handled differently:
+
+- **Currency:** it is part of the page's internal address. `src/proxy.ts` reads the `currency` cookie and rewrites `/products/x` to `/AUD/products/x` (or `/USD/...`), so every shop page lives under `app/(shop)/[currency]/` and takes `params.currency` (validate it with `resolveCurrency()`, never trust it). The browser address does not change; visitors cannot open `/AUD/...` directly (404, no duplicate pages for Google). `[currency]/layout.tsx` builds each offered currency ahead of time (`generateStaticParams`); product and CMS pages use `generateStaticParams() { return []; }` so each is built on first visit and then kept ready. Collection and category pages use `searchParams`, so they are rendered per request (their data is still cached).
+- **Signed-in customer and saved products:** asked in the BROWSER after the page appears (`ShopperProvider`, `useShopper()`), not by the server. A small non-secret cookie `shopper_hint` (see `modules/account/hint.ts`) tells the browser whether to ask at all, so anonymous visitors make no request. Set it on sign-in/register, clear it on sign-out.
+
+Personal pages (`app/account/**`, `/login`, `/register`, `/wishlist`, `/search`, `/enquiry`) are rendered fresh and MAY read cookies through `modules/account/server.ts` (`getCustomer`, `requireCustomer`, `accountGet`, which forward `customer_token` and are never cached) and `getSelectedCurrency()`. `ShopShell` (header, footer, `ShopperProvider`) takes `currency` as a prop and is shared by both.
+
+Adding a new shop page: put it under `app/(shop)/[currency]/`, take the currency from params, and do not read cookies. If it needs the cart (Phase 5), fetch it in the browser like the shopper above.
 
 ### Rules
 
@@ -283,6 +310,8 @@ Read `AGENTS.md` first: Next.js 16 has breaking changes. Check `node_modules/nex
 
 ### Admin panel (`/admin`)
 
+Built so far: Orders, Shipping, Currencies, Coupons, Reviews (approve/hide/reply/delete; Settings has the email switches and "show new reviews straight away"), plus the Settings switch "Orders sent overseas are GST-free" (`StoreSettings.removeGstForExports`, admin-only field). Customers (list with orders and total paid, detail window with addresses and latest orders, switch off/on; guests are shown as "Guest") and the Dashboard (sales today / this week / this month, to-do counts, latest orders, running-low stock, best sellers) are built too, so every screen in the list below exists. Dashboard backend: `GET /api/admin/dashboard` (`dashboard/`); "today", "week" (Monday start) and "month" use Australia/Sydney time (`period-bounds.ts`); a sale is a paid order (`PROCESSING/SHIPPED/DELIVERED`) counted from `placedAt`, in AUD, so refunded and cancelled orders drop out. "Running low" = active variant with 2 or fewer left (`LOW_STOCK_LIMIT`). Coupon DTO note: never give a DTO field a default value if an `UpdateDto` is made with `PartialType`, because the default leaks into every PATCH.
+
 - Has its own layout and login, protected by the admin session. Never linked from the storefront.
 - **Built for a non-technical owner:**
   - large clear forms
@@ -296,11 +325,11 @@ Read `AGENTS.md` first: Next.js 16 has breaking changes. Check `node_modules/nex
   - Categories
   - Collections (manual picker + smart rule builder)
   - Filters/Attributes
-  - Orders
+  - Orders (built: list with tabs and search, detail with ship/deliver/refund/cancel, private note)
   - Customers
-  - Coupons
-  - Shipping
-  - Currencies
+  - Coupons (built)
+  - Shipping (built: zones + rates)
+  - Currencies (built)
   - Pages
   - Menus
   - Banners
@@ -313,7 +342,7 @@ These are promised to the client, so they're not optional:
 
 - Clean URLs, `sitemap.xml`, `robots.txt`, canonical tags, and editable SEO fields on products, collections and pages.
 - AI-search friendly: structured data (above), a real FAQ page, and descriptive headings.
-- Meta Pixel and Google Analytics 4. IDs come from `StoreSettings` and are loaded once in the root layout. Track `ViewContent`, `AddToCart`, `InitiateCheckout` and `Purchase`.
+- Meta Pixel and Google Analytics 4. IDs come from `StoreSettings` and are loaded once in the root layout (`modules/tracking`: `TrackingScripts` puts a tiny queue in first and loads the big Meta/Google files when the browser is idle; `lib/track.ts` sends `ViewContent`, `AddToCart`, `InitiateCheckout` and `Purchase` to both, using the variant SKU as the item ID so it matches the Meta feed; `Purchase` is sent once per order). Not added: a cookie-consent banner (not required in Australia; add one if the shop starts targeting the EU/UK).
 - A Meta product feed endpoint for Facebook/Instagram Shopping.
 - A WhatsApp chat button (number from `StoreSettings`) and social links.
 - Automatic emails: order confirmation and shipping update.

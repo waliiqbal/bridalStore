@@ -5,6 +5,7 @@ import {
   type PaginationQueryDto,
 } from '../../../common/pagination/pagination.js';
 import type { Prisma } from '../../../generated/prisma/client.js';
+import { ratingSummary } from '../../reviews/review-rules.js';
 import { PrismaService } from '../../../prisma/prisma.service.js';
 import { CurrencyService } from '../../pricing/currency.service.js';
 import { CategoriesService } from '../categories/categories.service.js';
@@ -23,6 +24,8 @@ const DETAIL_SELECT = {
   isNewArrival: true,
   isReadyToShip: true,
   deliveryDays: true,
+  ratingCount: true,
+  ratingTotal: true,
   seoTitle: true,
   seoDescription: true,
   categoryId: true,
@@ -69,10 +72,12 @@ export class ProductsService {
     ]);
     if (!product) throw new NotFoundException('Product not found');
 
-    const { price, compareAtPrice, variants, attributes, categoryId, ...rest } = product;
+    const { price, compareAtPrice, variants, attributes, categoryId, ratingCount, ratingTotal, ...rest } = product;
 
     return {
       ...rest,
+      // { count, average } for the stars (average is null until someone reviews)
+      rating: ratingSummary(ratingCount, ratingTotal),
       price: currency.convert(price),
       compareAtPrice: currency.convertNullable(compareAtPrice),
       variants: variants.map((v) => ({

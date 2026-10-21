@@ -1,5 +1,6 @@
 import { Transform } from 'class-transformer';
 import {
+  IsBoolean,
   IsEmail,
   IsNumber,
   IsOptional,
@@ -48,6 +49,32 @@ export class UpdateSettingsDto {
   @Min(0)
   @Max(100)
   gstRatePercent?: number;
+
+  // true = shoppers in zones that don't pay Australian GST (overseas) see prices with the GST taken off
+  @IsOptional()
+  @IsBoolean()
+  removeGstForExports?: boolean;
+
+  // Customer emails: each can be switched off by the owner
+  @IsOptional()
+  @IsBoolean()
+  sendOrderEmails?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  sendShippingEmails?: boolean;
+
+  // Extra line at the bottom of every customer email (plain text)
+  @IsOptional()
+  @Transform(stripTags)
+  @IsString()
+  @MaxLength(300)
+  emailFooterNote?: string | null;
+
+  // false = new reviews wait for the owner to approve them
+  @IsOptional()
+  @IsBoolean()
+  autoApproveReviews?: boolean;
 
   @IsOptional()
   @Matches(HTTPS_URL, { message: 'instagramUrl must start with https://' })

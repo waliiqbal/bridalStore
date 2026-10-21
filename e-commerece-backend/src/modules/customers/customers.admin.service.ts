@@ -3,6 +3,7 @@ import { money } from '../../common/money/money.js';
 import { paginate, toSkipTake } from '../../common/pagination/pagination.js';
 import type { OrderStatus, Prisma } from '../../generated/prisma/client.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
+import { STATUS_LABELS } from '../orders/order-rules.js';
 import type { AdminCustomerListQueryDto } from './dto/customers.dto.js';
 
 // Orders that count as money received (refunded/cancelled/unpaid excluded).
@@ -111,6 +112,7 @@ export class CustomersAdminService {
       totalSpent: money(spent._sum.totalAud ?? 0, 'AUD'),
       recentOrders: orders.map(({ total, currencyCode, totalAud, ...order }) => ({
         ...order,
+        statusLabel: STATUS_LABELS[order.status],
         total: money(total, currencyCode),
         totalAud: money(totalAud, 'AUD'),
       })),

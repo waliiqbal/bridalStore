@@ -4,7 +4,7 @@ Storefront and API for Malaikah Bridal Studio. The repo contains two separate np
 
 | Folder | Stack | Dev URL |
 |---|---|---|
-| [`e-commerece-frontend`](e-commerece-frontend) | Next.js 16 (App Router), React 19, Tailwind CSS v4, Redux Toolkit | http://localhost:3001 |
+| [`e-commerece-frontend`](e-commerece-frontend) | Next.js 16 (App Router), React 19, Tailwind CSS v4 | http://localhost:3001 |
 | [`e-commerece-backend`](e-commerece-backend) | NestJS 12, Prisma 7 (PostgreSQL via `@prisma/adapter-pg`), Vitest | http://localhost:3000 |
 
 ## Prerequisites
@@ -57,7 +57,9 @@ Backend (`e-commerece-backend/.env`):
 | `SEED_ADMIN_EMAIL` / `SEED_ADMIN_PASSWORD` / `SEED_ADMIN_NAME` | none (seed only) | Owner account created by `npx prisma db seed` |
 | `CUSTOMER_JWT_SECRET` | none (required, 32+ chars, different from `JWT_SECRET`) | Signs customer session tokens |
 | `CUSTOMER_SESSION_DAYS` | `30` | How long a customer stays logged in |
-| `MAIL_DRIVER` / `MAIL_FROM` | `console` | `console` prints emails (password reset links) to the server log |
+| `MAIL_DRIVER` / `MAIL_FROM` | `console` | `console` prints emails to the server log. `smtp` (with `SMTP_HOST`, `SMTP_PORT`, `SMTP_SECURE`, `SMTP_USER`, `SMTP_PASSWORD`) or `provider` (Resend, `RESEND_API_KEY`) send real emails |
+| `COOKIE_DOMAIN` | empty | Parent domain for sign-in cookies, like `.example.com`, when the website and API are on subdomains |
+| `SEED_SAMPLE_PRODUCTS` | `true` | `false` makes `prisma db seed` skip the sample products (use on the live shop) |
 | `TRUST_PROXY` | `0` | Number of proxies in front of the API, so rate limits see real client IPs |
 | `SCHEDULER_ENABLED` | `true` | Background jobs: release unpaid orders after 30 minutes, delete old carts |
 | `PAYMENTS_DRIVER` | `live` | `fake` = in-memory providers for automated tests only (refused in production) |
@@ -66,6 +68,11 @@ Backend (`e-commerece-backend/.env`):
 | `FRONTEND_REVALIDATE_URL` / `REVALIDATE_SECRET` | empty | Lets the API refresh the storefront cache after admin changes |
 
 The API refuses to start if a required variable is missing or invalid, and says which one.
+
+## More guides
+
+- [docs/DEPLOY.md](docs/DEPLOY.md): going live (domains and cookies, every variable, webhooks, checks after launch)
+- [docs/OWNER-GUIDE.md](docs/OWNER-GUIDE.md): a plain guide for the shop owner
 
 > The backend only accepts requests from `FRONTEND_URL`. If you change the frontend's port or domain, update `FRONTEND_URL` to match.
 

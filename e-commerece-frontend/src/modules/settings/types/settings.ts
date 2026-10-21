@@ -14,6 +14,10 @@ export interface AdminSettings {
   metaPixelId: string | null;
   googleAnalyticsId: string | null;
   removeGstForExports: boolean;
+  sendOrderEmails: boolean;
+  sendShippingEmails: boolean;
+  emailFooterNote: string | null;
+  autoApproveReviews: boolean;
   updatedAt: string;
 }
 
@@ -30,4 +34,9 @@ export interface SettingsInput {
   tiktokUrl?: string | null;
   metaPixelId?: string | null;
   googleAnalyticsId?: string | null;
+  removeGstForExports?: boolean;
+  sendOrderEmails?: boolean;
+  sendShippingEmails?: boolean;
+  emailFooterNote?: string | null;
+  autoApproveReviews?: boolean;
 }

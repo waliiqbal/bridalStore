@@ -1,8 +1,10 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
+import { trackAddToCart, trackViewContent } from "@/modules/tracking/lib/track";
+import { useEffect, useState, type ReactNode } from "react";
 import { FaWhatsapp } from "react-icons/fa6";
 import { LuTruck } from "react-icons/lu";
+import { useCart } from "@/modules/cart/components/CartProvider";
 import { formatMoney } from "@/shared/lib/money";
 import {
   colourAvailable,
@@ -43,6 +45,9 @@ export function ProductView({
   const [colour, setColour] = useState<string | null>(colours.length === 1 ? colours[0] : null);
   const [size, setSize] = useState<string | null>(sizes.length === 1 ? sizes[0] : null);
   const [imageIndex, setImageIndex] = useState(0);
+  const { add, busy, error } = useCart();
+  // Only show the server's reason ("Only 2 available.") for the add that just failed
+  const [failed, setFailed] = useState(false);
 
   const selection = { colour, size };
   const variant = selectedVariant(variants, selection, colours, sizes);
@@ -57,7 +62,29 @@ export function ProductView({
   const percentOff = onSale ? Math.round((1 - price.amount / compare.amount) * 100) : 0;
   const tag = product.badge ?? (product.isNewArrival ? "New" : null);
 
+  // Tell Meta and Google someone looked at this product
+  useEffect(() => {
+    trackViewContent(
+      { sku: product.variants[0]?.sku ?? product.slug, name: product.name, unitPrice: product.price.amount, quantity: 1 },
+      product.price.currencyCode,
+    );
+  }, [product]);
+
+  async function addToBag() {
+    if (!variant) return;
+    setFailed(false);
+    const added = await add(variant.id, 1);
+    setFailed(!added);
+    if (added) {
+      trackAddToCart(
+        { sku: variant.sku, name: product.name, unitPrice: variant.price.amount, quantity: 1 },
+        variant.price.currencyCode,
+      );
+    }
+  }
+
   function chooseColour(value: string) {
+    setFailed(false);
     setColour(value);
     // A size that this colour doesn't have in stock can't stay chosen
     if (size && !sizeAvailable(variants, size, value)) setSize(null);
@@ -124,7 +151,10 @@ export function ProductView({
               label="Size"
               chosen={size}
               value={size}
-              onChange={setSize}
+              onChange={(value) => {
+                setFailed(false);
+                setSize(value);
+              }}
               action={
                 product.sizeGuide && (
                   <SizeGuideDialog name={product.sizeGuide.name} html={product.sizeGuide.content} />
@@ -149,10 +179,11 @@ export function ProductView({
         <div className="mt-6 flex flex-col gap-3 sm:flex-row">
           <button
             type="button"
-            disabled
-            className="h-14 w-full cursor-not-allowed bg-black text-sm font-medium uppercase tracking-wider text-white opacity-40 sm:flex-1"
+            onClick={addToBag}
+            disabled={!complete || !variant?.inStock || busy}
+            className="h-14 w-full bg-black text-sm font-medium uppercase tracking-wider text-white transition hover:bg-gold disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-black sm:flex-1"
           >
-            Add to cart
+            {busy ? "Adding…" : "Add to cart"}
           </button>
           {whatsappHref && (
             <a
@@ -166,9 +197,11 @@ export function ProductView({
             </a>
           )}
         </div>
-        <p className="mt-2 text-xs text-muted">
-          Online ordering is opening soon. {whatsappHref ? "Message us on WhatsApp to order today." : ""}
-        </p>
+        {failed && error && (
+          <p role="alert" className="mt-3 text-sm text-red-600">
+            {error}
+          </p>
+        )}
 
         {children}
       </div>
