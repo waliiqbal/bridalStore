@@ -3,14 +3,17 @@
 import { useState } from "react";
 import { Button } from "@/shared/admin/Button";
 import { useAdminUi } from "@/shared/admin/AdminUiProvider";
-import { Field, Input } from "@/shared/admin/Form";
+import { Field, Input, Toggle } from "@/shared/admin/Form";
 import { Card } from "@/shared/admin/Layout";
 import { updateSettings } from "../api/settings.api";
 import {
   ANNOUNCEMENT_MAX,
+  EMAIL_NOTE_MAX,
+  toFlags,
   toFormState,
   toSettingsInput,
   validateSettings,
+  type SettingsFlags,
   type SettingsFormErrors,
   type SettingsFormState,
 } from "../lib/settings-form";
@@ -22,8 +25,15 @@ export function SettingsForm({ settings, onSaved }: { settings: AdminSettings; o
   const [form, setForm] = useState<SettingsFormState>(initial);
   const [errors, setErrors] = useState<SettingsFormErrors>({});
   const [saving, setSaving] = useState(false);
+  // The on/off settings live beside the text boxes (the boxes all hold text)
+  const [initialFlags] = useState(() => toFlags(settings));
+  const [flags, setFlags] = useState<SettingsFlags>(initialFlags);
+  const setFlag = (key: keyof SettingsFlags) => (value: boolean) =>
+    setFlags((current) => ({ ...current, [key]: value }));
 
-  const dirty = JSON.stringify(form) !== JSON.stringify(initial);
+  const dirty =
+    JSON.stringify(form) !== JSON.stringify(initial) ||
+    JSON.stringify(flags) !== JSON.stringify(initialFlags);
   const set = <K extends keyof SettingsFormState>(key: K, value: string) => {
     setForm((current) => ({ ...current, [key]: value }));
     setErrors((current) => ({ ...current, [key]: undefined }));
@@ -38,7 +48,7 @@ export function SettingsForm({ settings, onSaved }: { settings: AdminSettings; o
     }
     setSaving(true);
     try {
-      await updateSettings(toSettingsInput(form));
+      await updateSettings({ ...toSettingsInput(form), ...flags });
       ui.success("Settings saved.");
       onSaved();
     } catch (error) {
@@ -160,6 +170,59 @@ export function SettingsForm({ settings, onSaved }: { settings: AdminSettings; o
             </div>
           </Field>
         </div>
+        <div className="mt-6 max-w-xl">
+          <Toggle
+            checked={flags.removeGstForExports}
+            onChange={setFlag("removeGstForExports")}
+            label="Orders sent overseas are GST-free"
+            hint="Your prices include GST. When this is on, customers in countries where Australian GST doesn't apply (you choose these under Shipping) pay your price with the GST taken off. Turn it off to charge the same price everywhere."
+          />
+        </div>
+      </Card>
+
+      <Card
+        title="Emails to customers"
+        description="Your customers get an email when their order is paid and when you mark it as shipped."
+      >
+        <div className="space-y-5">
+          <Toggle
+            checked={flags.sendOrderEmails}
+            onChange={setFlag("sendOrderEmails")}
+            label="Send an order confirmation"
+            hint="Sent as soon as the payment goes through."
+          />
+          <Toggle
+            checked={flags.sendShippingEmails}
+            onChange={setFlag("sendShippingEmails")}
+            label="Send a shipping email"
+            hint="Sent when you press “Mark as shipped”, with the tracking number and link."
+          />
+          <Field
+            label="Extra line at the bottom of every email"
+            htmlFor="s-emailFooterNote"
+            error={errors.emailFooterNote}
+            hint="Optional, for example your opening hours. Plain text only."
+          >
+            <Input
+              id="s-emailFooterNote"
+              value={form.emailFooterNote}
+              maxLength={EMAIL_NOTE_MAX}
+              onChange={(event) => set("emailFooterNote", event.target.value)}
+            />
+          </Field>
+        </div>
+      </Card>
+
+      <Card
+        title="Customer reviews"
+        description="Customers who are signed in can review a product. You can answer, hide or delete reviews under Reviews."
+      >
+        <Toggle
+          checked={flags.autoApproveReviews}
+          onChange={setFlag("autoApproveReviews")}
+          label="Show new reviews straight away"
+          hint="When this is off, each new review waits for you to approve it. We suggest leaving it off."
+        />
       </Card>
 
       <Card

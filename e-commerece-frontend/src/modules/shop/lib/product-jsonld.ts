@@ -47,5 +47,16 @@ export function productJsonLd(args: { product: ProductDetail; url: string; brand
     color: product.colours.length > 0 ? product.colours.join(", ") : undefined,
     brand: { "@type": "Brand", name: brandName },
     offers,
+    // Stars in Google results (only once someone has reviewed it)
+    aggregateRating:
+      product.rating.average !== null
+        ? {
+            "@type": "AggregateRating",
+            ratingValue: product.rating.average,
+            reviewCount: product.rating.count,
+            bestRating: 5,
+            worstRating: 1,
+          }
+        : undefined,
   };
 }

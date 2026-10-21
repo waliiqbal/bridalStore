@@ -1,5 +1,6 @@
 "use client";
 
+import { FormError } from "@/shared/components/FormError";
 import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { LuEye, LuEyeOff, LuLoaderCircle } from "react-icons/lu";
@@ -37,9 +38,9 @@ export function AdminLoginForm({ next, expired }: { next: string; expired: boole
         </p>
       )}
       {error && (
-        <p role="alert" className="rounded-sm border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+        <FormError>
           {error}
-        </p>
+        </FormError>
       )}
 
       <div>

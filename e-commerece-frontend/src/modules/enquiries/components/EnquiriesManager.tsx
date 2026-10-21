@@ -1,5 +1,6 @@
 "use client";
 
+import { formatDateTime } from "@/shared/lib/date";
 import { useState } from "react";
 import {
   LuCalendarDays,
@@ -256,13 +257,7 @@ export function EnquiriesManager() {
                       </h2>
                       <p className="mt-0.5 text-xs text-muted">
                         Received{" "}
-                        {new Date(enquiry.createdAt).toLocaleString("en-AU", {
-                          day: "numeric",
-                          month: "short",
-                          year: "numeric",
-                          hour: "numeric",
-                          minute: "2-digit",
-                        })}{" "}
+                        {formatDateTime(enquiry.createdAt)}{" "}
                         · {sourceLabel(enquiry.source)}
                       </p>
                     </div>

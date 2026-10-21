@@ -46,7 +46,14 @@ export class SettingsService {
   }
 
   async update(dto: UpdateSettingsDto) {
-    assertNoNulls(dto, ['storeName', 'gstRatePercent']);
+    assertNoNulls(dto, [
+      'storeName',
+      'gstRatePercent',
+      'removeGstForExports',
+      'sendOrderEmails',
+      'sendShippingEmails',
+      'autoApproveReviews',
+    ]);
     await this.ensure();
     const settings = await this.prisma.storeSettings.update({
       where: { id: SETTINGS_ID },

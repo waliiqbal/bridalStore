@@ -1,14 +1,23 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
+import { usePathname } from "next/navigation";
 import { LuChevronDown, LuMenu, LuX } from "react-icons/lu";
 import type { PublicMenuItem } from "@/modules/shop/types/shop";
 import { Logo } from "@/shared/components/Logo";
 import { highlightClass, MenuLink } from "./MenuLink";
 
 // The menu on phones: a button that opens a slide-in panel, with items that fold open.
-export function MobileMenu({ items }: { items: PublicMenuItem[] }) {
+export function MobileMenu({ items, footer }: { items: PublicMenuItem[]; footer?: ReactNode }) {
   const [open, setOpen] = useState(false);
+
+  // Close when the visitor goes to another page (links in `footer` don't close it themselves)
+  const pathname = usePathname();
+  const [lastPath, setLastPath] = useState(pathname);
+  if (pathname !== lastPath) {
+    setLastPath(pathname);
+    setOpen(false);
+  }
 
   // Keep the page behind the panel from scrolling
   useEffect(() => {
@@ -58,6 +67,7 @@ export function MobileMenu({ items }: { items: PublicMenuItem[] }) {
                 <Row key={item.id} item={item} depth={0} close={() => setOpen(false)} />
               ))}
             </ul>
+            {footer && <div className="border-t border-line px-4 py-4">{footer}</div>}
           </div>
         </div>
       )}

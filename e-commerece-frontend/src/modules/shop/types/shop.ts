@@ -1,3 +1,4 @@
+import type { RatingSummary } from "@/modules/reviews/types/reviews";
 import type { Money } from "@/shared/lib/money";
 
 // These match the backend's PUBLIC responses exactly (the ones the website reads).
@@ -163,4 +164,5 @@ export interface ProductDetail {
   attributes: { name: string; slug: string; values: { value: string; slug: string }[] }[];
   sizeGuide: { name: string; content: string } | null;
   breadcrumb: { name: string; slug: string }[];
+  rating: RatingSummary;
 }

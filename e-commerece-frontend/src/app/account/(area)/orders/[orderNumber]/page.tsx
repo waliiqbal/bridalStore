@@ -1,0 +1,49 @@
+import type { Metadata } from "next";
+import Link from "next/link";
+import { notFound } from "next/navigation";
+import { ApiError } from "@/infrastructure/http/api-client";
+import { OrderDetailBody } from "@/modules/account/components/OrderDetailBody";
+import { OrderStatusBadge } from "@/modules/account/components/OrderStatusBadge";
+import { accountGet } from "@/modules/account/server";
+import type { OrderDetail } from "@/modules/account/types/account";
+import { formatDate } from "@/shared/lib/date";
+
+type Props = { params: Promise<{ orderNumber: string }> };
+
+export async function generateMetadata({ params }: Props): Promise<Metadata> {
+  const { orderNumber } = await params;
+  return { title: `Order ${orderNumber}` };
+}
+
+export default async function OrderPage({ params }: Props) {
+  const { orderNumber } = await params;
+  const path = `/account/orders/${encodeURIComponent(orderNumber)}`;
+  let order: OrderDetail;
+  try {
+    order = await accountGet<OrderDetail>(path, path);
+  } catch (error) {
+    if (error instanceof ApiError && error.status === 404) notFound();
+    throw error;
+  }
+
+  return (
+    <article aria-labelledby="order-heading">
+      <Link
+        href="/account/orders"
+        className="text-sm text-muted underline-offset-4 hover:text-gold hover:underline"
+      >
+        ← All orders
+      </Link>
+
+      <header className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2">
+        <h2 id="order-heading" className="font-serif text-2xl font-bold">
+          Order {order.orderNumber}
+        </h2>
+        <OrderStatusBadge status={order.status} label={order.statusLabel} />
+      </header>
+      <p className="mt-1 text-sm text-muted">Placed on {formatDate(order.placedAt ?? order.createdAt)}</p>
+
+      <OrderDetailBody order={order} />
+    </article>
+  );
+}

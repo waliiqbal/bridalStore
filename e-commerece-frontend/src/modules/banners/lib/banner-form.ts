@@ -35,16 +35,6 @@ export function toLocalInput(iso: string | null): string {
 }
 const fromLocalInput = (value: string): string | null => (value ? new Date(value).toISOString() : null);
 
-export function formatWhen(iso: string): string {
-  return new Date(iso).toLocaleString("en-AU", {
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-  });
-}
-
 export interface BannerFormState {
   title: string;
   subtitle: string;

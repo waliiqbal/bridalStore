@@ -16,7 +16,9 @@ export function ProductScroller({ children, label }: { children: ReactNode; labe
       <ul
         ref={row}
         aria-label={label}
-        className="no-scrollbar -mx-4 flex snap-x snap-mandatory gap-3 overflow-x-auto scroll-smooth px-4 pb-2 sm:gap-4 lg:-mx-6 lg:px-6"
+        // No CSS `scroll-smooth` here: together with snap scrolling it makes Chrome treat the row as
+        // scrolled on load and stop measuring the page's largest paint. The arrows already scroll smoothly.
+        className="no-scrollbar -mx-4 flex snap-x snap-mandatory gap-3 overflow-x-auto px-4 pb-2 sm:gap-4 lg:-mx-6 lg:px-6"
       >
         {children}
       </ul>

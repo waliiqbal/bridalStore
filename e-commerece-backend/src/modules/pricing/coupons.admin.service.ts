@@ -56,11 +56,12 @@ export class CouponsAdminService {
   }
 
   async create(dto: CreateCouponDto) {
-    validateCoupon({ ...dto, usedCount: 0 });
+    const value = dto.type === 'FREE_SHIPPING' ? 0 : (dto.value ?? 0);
+    validateCoupon({ ...dto, value, usedCount: 0 });
     const exists = await this.prisma.coupon.count({ where: { code: dto.code } });
     if (exists) throw new ConflictException(`The code ${dto.code} already exists`);
     const row = await this.prisma.coupon.create({
-      data: { ...dto, value: dto.type === 'FREE_SHIPPING' ? 0 : dto.value },
+      data: { ...dto, value },
       select: SELECT,
     });
     return toView(row);

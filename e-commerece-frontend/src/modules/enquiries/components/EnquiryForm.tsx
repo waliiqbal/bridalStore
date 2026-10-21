@@ -1,5 +1,7 @@
 "use client";
 
+import { FormError } from "@/shared/components/FormError";
+import { EMAIL_PATTERN, PHONE_PATTERN } from "@/shared/lib/validators";
 import { useState, type FormEvent } from "react";
 import Link from "next/link";
 import { LuCircleCheck } from "react-icons/lu";
@@ -19,8 +21,6 @@ interface Props {
 type FieldName = "name" | "phone" | "email" | "eventDate";
 type Errors = Partial<Record<FieldName | "form", string>>;
 
-const PHONE = /^\+?[\d\s\-()]{6,20}$/;
-const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 // A pill you tap, used for the budget (pick one) and the outfit types (pick any)
 function Pill({
@@ -71,8 +71,8 @@ export function EnquiryForm({ options, source, whatsappHref }: Props) {
     event.preventDefault();
     const found: Errors = {};
     if (name.trim().length < 2) found.name = "Please enter your name.";
-    if (!PHONE.test(phone.trim())) found.phone = "Please enter a phone number we can reach you on.";
-    if (email.trim() && !EMAIL.test(email.trim())) found.email = "That email address doesn't look right.";
+    if (!PHONE_PATTERN.test(phone.trim())) found.phone = "Please enter a phone number we can reach you on.";
+    if (email.trim() && !EMAIL_PATTERN.test(email.trim())) found.email = "That email address doesn't look right.";
     // "en-CA" formats as YYYY-MM-DD, in the visitor's own time zone
     if (eventDate && eventDate < new Date().toLocaleDateString("en-CA")) {
       found.eventDate = "Please choose a date that hasn't passed.";
@@ -280,9 +280,9 @@ export function EnquiryForm({ options, source, whatsappHref }: Props) {
       </div>
 
       {errors.form && (
-        <p role="alert" className="rounded-sm border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+        <FormError>
           {errors.form}
-        </p>
+        </FormError>
       )}
 
       <Button

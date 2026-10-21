@@ -2,6 +2,7 @@ import { BadRequestException, Injectable, Logger, NotFoundException } from '@nes
 import type { OrderStatus, PaymentProvider, Prisma } from '../../generated/prisma/client.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { CacheTags, RevalidationService } from '../revalidation/revalidation.service.js';
+import { OrderEmailsService } from './order-emails.service.js';
 import {
   canTransition,
   CHANGED_BY,
@@ -60,6 +61,7 @@ export class OrderLifecycleService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly revalidation: RevalidationService,
+    private readonly emails: OrderEmailsService,
   ) {}
 
   /**
@@ -150,6 +152,8 @@ export class OrderLifecycleService {
     });
 
     if (changed.length) await this.notifyAvailability(availabilityChanged(changed, reserved, 'reserved'));
+    // Only the first successful call sends the confirmation (a repeated webhook gets ALREADY_PAID)
+    if (result.outcome === 'PAID') void this.emails.sendConfirmation(orderId);
     return result;
   }
 
@@ -260,6 +264,7 @@ export class OrderLifecycleService {
         data: { orderId, from: order.status, to, note: details.note ?? null, changedBy },
       });
     });
+    if (to === 'SHIPPED') void this.emails.sendShipped(orderId);
     return { refundRequired: false };
   }
 

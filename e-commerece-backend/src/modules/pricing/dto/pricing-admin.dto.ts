@@ -63,7 +63,7 @@ export class CreateCouponDto {
   @IsInt()
   @Min(0)
   @Max(100_000_000)
-  value: number = 0;
+  value?: number;
 
   // Minimum order (AUD cents, after GST, before shipping)
   @IsOptional()
