@@ -66,6 +66,39 @@ Webhooks (create these in each provider's dashboard once the API is online):
 
 Health check: `GET /api/health`.
 
+### Hosting the backend on a Node host such as Hostinger
+
+- **The database must be PostgreSQL.** Most shared hosting only offers MySQL, which this app cannot use.
+  Create a free or paid PostgreSQL database elsewhere (Neon, Supabase, Railway, Render) and put its
+  connection string in `DATABASE_URL`.
+- Settings in the host's panel: root directory `e-commerece-backend`, Node 22, install command
+  `npm install`, build command `npm run build`, start command `node dist/main.js` (output folder `dist`).
+  The build also runs `prisma generate` by itself (the `prebuild` script), and the build tools are normal
+  dependencies, so a production-only install works.
+- Put every variable from section 2 in the host's environment-variables page. Do not commit `.env`.
+
+### Running the migrations and the seeder (once, from your own computer)
+
+The host usually has no terminal, so run them from your computer against the live database. The database
+must accept outside connections (Neon and Supabase do).
+
+PowerShell:
+
+```powershell
+cd e-commerece-backend
+npm install
+$env:DATABASE_URL = "postgresql://user:password@host:5432/dbname?sslmode=require"
+$env:SEED_ADMIN_EMAIL = "owner@yourshop.com"
+$env:SEED_ADMIN_PASSWORD = "a-long-password-12-chars-or-more"
+$env:SEED_ADMIN_NAME = "Store Owner"
+$env:SEED_SAMPLE_PRODUCTS = "false"
+npm run db:migrate    # creates all the tables
+npm run db:seed       # owner login, settings, currencies, shipping, menus, homepage, categories, filters
+```
+
+The seeder is safe to run again (it never overwrites what the owner has changed or an existing password).
+If the host does give you a terminal or SSH, run the same two npm commands there instead.
+
 ## 3. Website (Vercel or any Node host)
 
 ```bash
