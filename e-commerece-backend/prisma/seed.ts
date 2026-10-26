@@ -5,7 +5,7 @@
 // owner edits in admin — rates, settings, passwords — survive a re-seed).
 import 'dotenv/config';
 import { PrismaPg } from '@prisma/adapter-pg';
-import * as argon2 from 'argon2';
+import { hashPassword, verifyPassword } from '../src/common/password.js';
 import { PrismaClient, type Prisma } from '../src/generated/prisma/client.js';
 import { pgOptions } from '../src/prisma/pg-options.js';
 import { SHOP_SECTIONS } from './seed-data/shop-menu.js';
@@ -117,7 +117,7 @@ async function seedAdmin() {
       email,
       name,
       role: 'OWNER',
-      passwordHash: await argon2.hash(password),
+      passwordHash: await hashPassword(password),
     },
   });
 }

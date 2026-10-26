@@ -4,7 +4,7 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
-import * as argon2 from 'argon2';
+import { hashPassword, verifyPassword } from '../../common/password.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import type { AdminJwtPayload, AdminProfile } from './auth.types.js';
 
@@ -35,14 +35,12 @@ export class AuthService {
     });
 
     if (!admin) {
-      this.dummyHash ??= argon2.hash('dummy-password-for-timing');
-      await argon2.verify(await this.dummyHash, password).catch(() => false);
+      this.dummyHash ??= hashPassword('dummy-password-for-timing');
+      await verifyPassword(await this.dummyHash, password).catch(() => false);
       throw new UnauthorizedException('Invalid email or password');
     }
 
-    const passwordOk = await argon2
-      .verify(admin.passwordHash, password)
-      .catch(() => false);
+    const passwordOk = await verifyPassword(admin.passwordHash, password);
     if (!passwordOk) {
       throw new UnauthorizedException('Invalid email or password');
     }

@@ -1,6 +1,6 @@
 import { ForbiddenException, UnauthorizedException } from '@nestjs/common';
 import type { JwtService } from '@nestjs/jwt';
-import * as argon2 from 'argon2';
+import { hashPassword, verifyPassword } from '../../common/password.js';
 import type { PrismaService } from '../../prisma/prisma.service.js';
 import { AuthService } from './auth.service.js';
 
@@ -25,7 +25,7 @@ describe('AuthService.login', () => {
   });
 
   beforeAll(async () => {
-    passwordHash = await argon2.hash(PASSWORD);
+    passwordHash = await hashPassword(PASSWORD);
   });
 
   beforeEach(() => {

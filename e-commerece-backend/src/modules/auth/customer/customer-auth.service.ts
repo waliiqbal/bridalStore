@@ -9,7 +9,7 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
-import * as argon2 from 'argon2';
+import { hashPassword, verifyPassword } from '../../../common/password.js';
 import type { Env } from '../../../config/env.validation.js';
 import { PrismaService } from '../../../prisma/prisma.service.js';
 import { MAIL_SERVICE, type MailService } from '../../mail/mail.service.js';
@@ -73,7 +73,7 @@ export class CustomerAuthService {
     const customer = await this.prisma.customer.create({
       data: {
         email,
-        passwordHash: await argon2.hash(dto.password),
+        passwordHash: await hashPassword(dto.password),
         firstName: dto.firstName?.trim() || null,
         lastName: dto.lastName?.trim() || null,
         marketingOptIn: dto.marketingOptIn ?? false,
@@ -92,11 +92,11 @@ export class CustomerAuthService {
 
     // Guest customers (no password yet) are treated like unknown emails.
     if (!customer?.passwordHash) {
-      this.dummyHash ??= argon2.hash('dummy-password-for-timing');
-      await argon2.verify(await this.dummyHash, password).catch(() => false);
+      this.dummyHash ??= hashPassword('dummy-password-for-timing');
+      await verifyPassword(await this.dummyHash, password).catch(() => false);
       throw new UnauthorizedException('Invalid email or password');
     }
-    const ok = await argon2.verify(customer.passwordHash, password).catch(() => false);
+    const ok = await verifyPassword(customer.passwordHash, password).catch(() => false);
     if (!ok) throw new UnauthorizedException('Invalid email or password');
     if (!customer.isActive) {
       throw new ForbiddenException('This account has been disabled. Please contact us for help.');
@@ -151,7 +151,7 @@ export class CustomerAuthService {
       throw new BadRequestException(INVALID_LINK);
     }
 
-    const passwordHash = await argon2.hash(password);
+    const passwordHash = await hashPassword(password);
     await this.prisma.$transaction(async (tx) => {
       // Marking it used only if still unused makes the token single-use under races.
       const { count } = await tx.passwordResetToken.updateMany({
@@ -178,13 +178,13 @@ export class CustomerAuthService {
       select: { passwordHash: true },
     });
     const ok = customer?.passwordHash
-      ? await argon2.verify(customer.passwordHash, currentPassword).catch(() => false)
+      ? await verifyPassword(customer.passwordHash, currentPassword).catch(() => false)
       : false;
     if (!ok) throw new BadRequestException('Your current password is not correct');
 
     const updated = await this.prisma.customer.update({
       where: { id: customerId },
-      data: { passwordHash: await argon2.hash(newPassword), sessionVersion: { increment: 1 } },
+      data: { passwordHash: await hashPassword(newPassword), sessionVersion: { increment: 1 } },
       select: { sessionVersion: true },
     });
     return this.issueSession(customerId, updated.sessionVersion);
