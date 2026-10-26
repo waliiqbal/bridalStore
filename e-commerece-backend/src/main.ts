@@ -10,4 +10,9 @@ async function bootstrap() {
   const config = app.get<ConfigService<Env, true>>(ConfigService);
   await app.listen(config.get('PORT', { infer: true }));
 }
-await bootstrap();
+// Not `await bootstrap()` at the top level: some hosts load this file with require(), which
+// cannot load a file that has a top-level await.
+bootstrap().catch((error: unknown) => {
+  console.error(error);
+  process.exit(1);
+});

@@ -7,13 +7,14 @@ import 'dotenv/config';
 import { PrismaPg } from '@prisma/adapter-pg';
 import * as argon2 from 'argon2';
 import { PrismaClient, type Prisma } from '../src/generated/prisma/client.js';
+import { pgOptions } from '../src/prisma/pg-options.js';
 import { SHOP_SECTIONS } from './seed-data/shop-menu.js';
 
 const databaseUrl = process.env.DATABASE_URL;
 if (!databaseUrl) throw new Error('DATABASE_URL is not set (check your .env)');
 
 const prisma = new PrismaClient({
-  adapter: new PrismaPg({ connectionString: databaseUrl }),
+  adapter: new PrismaPg(pgOptions(databaseUrl)),
 });
 
 const slugify = (s: string) =>

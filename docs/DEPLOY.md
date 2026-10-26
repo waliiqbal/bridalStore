@@ -66,11 +66,38 @@ Webhooks (create these in each provider's dashboard once the API is online):
 
 Health check: `GET /api/health`.
 
+### Supabase as the database
+
+1. In Supabase open your project, press **Connect**, and copy the **Session pooler** connection string
+   (host `aws-0-<region>.pooler.supabase.com`, port **5432**, user `postgres.<project-ref>`).
+   - Do **not** use "Transaction pooler" (port 6543): the order-release job uses Postgres advisory locks
+     and migrations need a normal session.
+   - Do not use "Direct connection": it only works over IPv6, which many hosts and home networks lack.
+2. Put your database password in it. If the password has symbols such as `@ # / :`, write them
+   percent-encoded (`@` becomes `%40`), or reset the password to letters and numbers only.
+3. Add `?sslmode=require` at the end. The app reads this as "encrypted, certificate not checked"
+   (`src/prisma/pg-options.ts`), which is what Supabase needs.
+4. Use this **same** address as `DATABASE_URL` on the host and when you run the migrations below.
+5. **Lock the tables (important).** Supabase publishes every table to the internet through its own
+   REST API, and anyone with the public "anon" key could then read or change customers and orders.
+   After the migrations have run, open **SQL Editor** and run this once (the app connects as the
+   database owner, so it is not affected):
+
+   ```sql
+   DO $$ DECLARE r record; BEGIN
+     FOR r IN SELECT tablename FROM pg_tables WHERE schemaname = 'public' LOOP
+       EXECUTE format('ALTER TABLE public.%I ENABLE ROW LEVEL SECURITY', r.tablename);
+     END LOOP;
+   END $$;
+   ```
+
+   Run it again after any future migration that adds a table. Also never put the Supabase "anon" or
+   "service_role" keys in this project: it only needs the database connection string.
+
 ### Hosting the backend on a Node host such as Hostinger
 
-- **The database must be PostgreSQL.** Most shared hosting only offers MySQL, which this app cannot use.
-  Create a free or paid PostgreSQL database elsewhere (Neon, Supabase, Railway, Render) and put its
-  connection string in `DATABASE_URL`.
+- **The database must be PostgreSQL** (Supabase is fine, see above). Shared hosting's own database is
+  usually MySQL, which this app cannot use. Put the Supabase session-pooler address in `DATABASE_URL`.
 - Settings in the host's panel: root directory `e-commerece-backend`, Node 22, install command
   `npm install`, build command `npm run build`, start command `node dist/main.js` (output folder `dist`).
   The build also runs `prisma generate` by itself (the `prebuild` script), and the build tools are normal
@@ -87,7 +114,7 @@ PowerShell:
 ```powershell
 cd e-commerece-backend
 npm install
-$env:DATABASE_URL = "postgresql://user:password@host:5432/dbname?sslmode=require"
+$env:DATABASE_URL = "postgresql://postgres.<project-ref>:<password>@aws-0-<region>.pooler.supabase.com:5432/postgres?sslmode=require"
 $env:SEED_ADMIN_EMAIL = "owner@yourshop.com"
 $env:SEED_ADMIN_PASSWORD = "a-long-password-12-chars-or-more"
 $env:SEED_ADMIN_NAME = "Store Owner"
