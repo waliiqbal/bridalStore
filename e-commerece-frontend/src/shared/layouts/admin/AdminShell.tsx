@@ -4,7 +4,7 @@ import { useState, type ReactNode } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { LuMenu, LuX } from "react-icons/lu";
-import { LogoMark } from "@/shared/components/Logo";
+import { Logo } from "@/shared/components/Logo";
 import { brand } from "@/config/brand";
 import { adminNav } from "./admin-nav";
 
@@ -26,11 +26,8 @@ export function AdminShell({ user, userActions, children }: AdminShellProps) {
         onClick={() => setOpen(false)}
         className="mb-6 flex items-center gap-3 px-2"
       >
-        <LogoMark className="h-8 w-10 text-gold" />
-        <span className="leading-none">
-          <span className="block font-serif text-lg font-bold tracking-[0.25em]">{brand.logoName}</span>
-          <span className="mt-1 block text-[10px] tracking-[0.3em] text-muted">ADMIN</span>
-        </span>
+        <Logo size="sm" />
+        <span className="text-[10px] tracking-[0.3em] text-muted">ADMIN</span>
       </Link>
 
       <div className="space-y-6">

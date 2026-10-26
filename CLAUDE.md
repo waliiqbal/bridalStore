@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Custom single-brand online store for **Malikah Bridal Studio**, a Pakistani bridal and formal wear shop based in **Australia**.
 
-> TODO: confirm the exact brand spelling with the client ("Malikah" vs "Malaikah"). The code currently says "Malaikah". Once confirmed, use it everywhere: `src/config/brand.ts`, metadata, emails, `StoreSettings.storeName`.
+> Brand spelling is **Malikah** (confirmed by the client's logo, `docs/logofor malikah bridel.jpeg`). Logo files: `e-commerece-frontend/public/brand/malikah-logo.png` (transparent, navy letters, for light backgrounds), `malikah-logo-navy.png` (original on navy); browser-tab icons `src/app/icon.png` / `apple-icon.png` (the crown). Component: `shared/components/Logo` (`size="sm" | "md" | "lg"`).
 
 Key business facts:
 

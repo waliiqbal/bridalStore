@@ -61,7 +61,7 @@ export async function Header({ currency }: { currency: string }) {
 
           {/* The name matches the words in the logo, which screen-reader software needs */}
           <Link href="/" aria-label={storeName}>
-            <Logo />
+            <Logo preload />
           </Link>
 
           <div className="flex items-center justify-end gap-1 sm:gap-2 lg:gap-3">

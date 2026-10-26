@@ -57,7 +57,7 @@ export function MobileMenu({ items, footer }: { items: PublicMenuItem[]; footer?
             className="absolute inset-y-0 left-0 flex w-[88%] max-w-sm flex-col bg-white shadow-xl"
           >
             <div className="flex items-center justify-between border-b border-line px-4 py-3">
-              <Logo />
+              <Logo size="sm" />
               <button type="button" onClick={() => setOpen(false)} aria-label="Close menu" className="p-2">
                 <LuX className="h-5 w-5" />
               </button>

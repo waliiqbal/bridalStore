@@ -32,7 +32,7 @@ export default async function AdminLoginPage({
     <div className="flex min-h-screen items-center justify-center bg-cream px-4 py-10">
       <div className="w-full max-w-md">
         <div className="mb-8 flex justify-center">
-          <Logo />
+          <Logo size="lg" preload />
         </div>
         <div className="rounded-sm border border-line bg-white p-6 shadow-sm sm:p-8">
           <h1 className="font-serif text-2xl font-bold">Admin sign in</h1>

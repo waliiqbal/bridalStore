@@ -30,7 +30,7 @@ export async function Footer() {
     <footer className="mt-auto border-t border-line bg-cream">
       <div className="mx-auto grid max-w-[1600px] gap-10 px-4 py-12 sm:grid-cols-2 lg:grid-cols-[1.4fr_repeat(auto-fit,minmax(9rem,1fr))] lg:px-6">
         <div>
-          <Logo />
+          <Logo size="lg" />
           <p className="mt-4 max-w-xs text-sm text-muted">{brand.tagline}</p>
 
           <ul className="mt-5 space-y-2 text-sm">

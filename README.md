@@ -180,3 +180,23 @@ Square and PayPal webhooks need a public HTTPS URL. Locally, expose the API with
 - Paying the same order twice (for example in two tabs) refunds the second payment automatically and flags the order in admin (**Needs attention**).
 - Partial and full refunds from admin appear in the order history; a full refund marks the order **Refunded**.
 - Redelivering a webhook from the provider's dashboard changes nothing.
+
+## Shop sections (categories, collections and header menu)
+
+The shop's sections live in one easy file: `e-commerece-backend/prisma/seed-data/shop-menu.ts`. Each entry becomes a top item in the header menu:
+
+- `kind: 'category'`: a category with its sub-categories (products are put into these in admin).
+- `kind: 'occasion'`: collections that fill themselves from the product's **Occasion** filter (Nikah, Mehndi, Barat, Walima).
+- `kind: 'new-arrivals'` / `kind: 'sale'`: products marked "New arrival", or products with a crossed-out price.
+
+After editing it:
+
+```bash
+cd e-commerece-backend
+npx prisma db seed                                   # adds anything new; never deletes what you added in admin
+SEED_RESET_MAIN_MENU=true npx prisma db seed         # also rebuilds the header menu from the file
+SEED_REMOVE_UNLISTED_CATEGORIES=true npx prisma db seed   # also removes old categories that have no products
+SEED_SAMPLE_PRODUCTS=false npx prisma db seed        # live shop: skip the 5 sample dresses
+```
+
+The seed tells the website to refresh its cached pages at the end (when the website is running).

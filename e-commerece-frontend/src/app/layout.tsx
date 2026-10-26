@@ -38,6 +38,7 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
     "@type": "Organization",
     name: settings?.storeName ?? brand.name,
     url: env.siteUrl,
+    logo: `${env.siteUrl}/brand/malikah-logo-navy.png`,
     email: settings?.contactEmail ?? undefined,
     telephone: settings?.contactPhone ?? undefined,
     sameAs: [settings?.instagramUrl, settings?.facebookUrl, settings?.tiktokUrl].filter(Boolean),
@@ -45,7 +46,8 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
 
   return (
     <html lang="en" className={`${geistSans.variable} ${playfair.variable} h-full antialiased`}>
-      <body className="flex min-h-full flex-col">
+      {/* Browser extensions (e.g. Grammarly) add attributes to body before React loads */}
+      <body className="flex min-h-full flex-col" suppressHydrationWarning>
         <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLdString(organization) }} />
         {children}
         <TrackingScripts

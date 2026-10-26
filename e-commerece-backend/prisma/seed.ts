@@ -6,7 +6,8 @@
 import 'dotenv/config';
 import { PrismaPg } from '@prisma/adapter-pg';
 import * as argon2 from 'argon2';
-import { PrismaClient } from '../src/generated/prisma/client.js';
+import { PrismaClient, type Prisma } from '../src/generated/prisma/client.js';
+import { SHOP_SECTIONS } from './seed-data/shop-menu.js';
 
 const databaseUrl = process.env.DATABASE_URL;
 if (!databaseUrl) throw new Error('DATABASE_URL is not set (check your .env)');
@@ -18,6 +19,7 @@ const prisma = new PrismaClient({
 const slugify = (s: string) =>
   s
     .toLowerCase()
+    .replace(/['’]/g, '')
     .replace(/&/g, 'and')
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/(^-|-$)/g, '');
@@ -147,36 +149,167 @@ async function seedAttributes(): Promise<Map<string, string>> {
   return ids;
 }
 
-const CATEGORIES: Record<string, string[]> = {
-  Bridal: ['Lehenga', 'Sharara', 'Gharara'],
-  Formals: ['Maxi', 'Kurta Set'],
-  'Party Wear': ['Anarkali Frock', 'Saree'],
-  Menswear: ['Sherwani', 'Kurta Pajama'],
-};
+// Category slugs: "Bridal Wear" → bridal-wear, its "Lehengas" → bridal-wear-lehengas
+// (children are prefixed so e.g. "Sarees" can't clash between two sections).
+const childSlug = (parent: string, child: string) => `${slugify(parent)}-${slugify(child)}`;
 
-// Returns category slug -> id
+// Categories come from prisma/seed-data/shop-menu.ts. Returns category slug -> id.
 async function seedCategories(): Promise<Map<string, string>> {
   const ids = new Map<string, string>();
   let parentOrder = 0;
-  for (const [parentName, children] of Object.entries(CATEGORIES)) {
+  for (const section of SHOP_SECTIONS) {
+    if (section.kind !== 'category') continue;
+    const slug = slugify(section.name);
     const parent = await prisma.category.upsert({
-      where: { slug: slugify(parentName) },
+      where: { slug },
       update: {},
-      create: { name: parentName, slug: slugify(parentName), sortOrder: parentOrder++ },
+      create: { name: section.name, slug, sortOrder: parentOrder },
     });
+    parentOrder++;
     ids.set(parent.slug, parent.id);
-    for (const [i, childName] of children.entries()) {
-      // Child slugs are prefixed so e.g. "Saree" can't clash with a future top-level category.
-      const slug = `${parent.slug}-${slugify(childName)}`;
+    for (const [i, childName] of section.items.entries()) {
       const child = await prisma.category.upsert({
-        where: { slug },
+        where: { slug: childSlug(section.name, childName) },
         update: {},
-        create: { name: childName, slug, parentId: parent.id, sortOrder: i },
+        create: { name: childName, slug: childSlug(section.name, childName), parentId: parent.id, sortOrder: i },
       });
       ids.set(child.slug, child.id);
     }
   }
   return ids;
+}
+
+// Optional tidy-up (SEED_REMOVE_UNLISTED_CATEGORIES=true): deletes categories that are no longer
+// in shop-menu.ts AND have no products, so old starter categories don't show in the shop.
+async function removeUnlistedCategories(keep: Map<string, string>) {
+  const keepIds = new Set(keep.values());
+  const unlisted = await prisma.category.findMany({
+    where: { id: { notIn: [...keepIds] } },
+    select: { id: true, name: true, parentId: true, _count: { select: { products: true, children: true } } },
+  });
+  const removable = new Set(unlisted.filter((c) => c._count.products === 0).map((c) => c.id));
+  // A parent can only go if all its children go too
+  const deletable = unlisted.filter(
+    (c) => removable.has(c.id) && unlisted.filter((x) => x.parentId === c.id).every((x) => removable.has(x.id)) &&
+      c._count.children === unlisted.filter((x) => x.parentId === c.id).length,
+  );
+  const ids = deletable.map((c) => c.id);
+  if (!ids.length) return;
+  await prisma.collectionRule.deleteMany({ where: { field: 'CATEGORY', value: { in: ids } } });
+  // Children first
+  await prisma.category.deleteMany({ where: { id: { in: ids }, parentId: { not: null } } });
+  await prisma.category.deleteMany({ where: { id: { in: ids } } });
+  const kept = unlisted.filter((c) => !ids.includes(c.id)).map((c) => c.name);
+  console.log(`Removed old categories: ${deletable.map((c) => c.name).join(', ')}`);
+  if (kept.length) console.log(`Kept (they still have products): ${kept.join(', ')}`);
+}
+
+type CollectionSeed = {
+  title: string;
+  matchAllRules?: boolean;
+  rules: Prisma.CollectionRuleCreateWithoutCollectionInput[];
+};
+
+async function upsertCollection(c: CollectionSeed): Promise<string> {
+  const slug = slugify(c.title);
+  const row = await prisma.collection.upsert({
+    where: { slug },
+    update: {},
+    create: {
+      title: c.title,
+      slug,
+      type: 'SMART',
+      matchAllRules: c.matchAllRules ?? true,
+      defaultSort: 'NEWEST',
+      rules: { create: c.rules },
+    },
+    select: { id: true },
+  });
+  return row.id;
+}
+
+type MenuSeedItem = {
+  label: string;
+  type: 'CATEGORY' | 'COLLECTION';
+  targetId: string;
+  highlight?: string;
+  children?: MenuSeedItem[];
+};
+
+// Collections for the occasion / New Arrivals / Sale sections, and the header menu.
+async function seedShopSections(categoryIds: Map<string, string>, attributeIds: Map<string, string>) {
+  const menu: MenuSeedItem[] = [];
+
+  for (const section of SHOP_SECTIONS) {
+    if (section.kind === 'category') {
+      menu.push({
+        label: section.name,
+        type: 'CATEGORY',
+        targetId: categoryIds.get(slugify(section.name))!,
+        highlight: section.highlight,
+        children: section.items.map((child) => ({
+          label: child,
+          type: 'CATEGORY',
+          targetId: categoryIds.get(childSlug(section.name, child))!,
+        })),
+      });
+    } else if (section.kind === 'occasion') {
+      const valueId = (occasion: string) => {
+        const id = attributeIds.get(`Occasion:${occasion}`);
+        if (!id) throw new Error(`"${occasion}" is not an Occasion in prisma/seed.ts ATTRIBUTES — add it there first`);
+        return id;
+      };
+      const children: MenuSeedItem[] = [];
+      for (const occasion of section.items) {
+        const title = section.itemSuffix ? `${occasion} ${section.itemSuffix}` : occasion;
+        children.push({
+          label: title,
+          type: 'COLLECTION',
+          targetId: await upsertCollection({ title, rules: [{ field: 'ATTRIBUTE', operator: 'EQUALS', value: valueId(occasion) }] }),
+        });
+      }
+      // The section itself: products for ANY of its occasions
+      const parentId = await upsertCollection({
+        title: section.name,
+        matchAllRules: false,
+        rules: section.items.map((o) => ({ field: 'ATTRIBUTE' as const, operator: 'EQUALS' as const, value: valueId(o) })),
+      });
+      menu.push({ label: section.name, type: 'COLLECTION', targetId: parentId, highlight: section.highlight, children });
+    } else {
+      const field = section.kind === 'sale' ? 'ON_SALE' : 'NEW_ARRIVAL';
+      const id = await upsertCollection({ title: section.name, rules: [{ field, operator: 'EQUALS', value: '' }] });
+      menu.push({ label: section.name, type: 'COLLECTION', targetId: id, highlight: section.highlight });
+    }
+  }
+
+  // Header menu: built once (or rebuilt with SEED_RESET_MAIN_MENU=true) so edits made in
+  // admin are never overwritten by a normal re-seed.
+  const main = await prisma.menu.findUniqueOrThrow({ where: { handle: 'main' }, select: { id: true, _count: { select: { items: true } } } });
+  const reset = process.env.SEED_RESET_MAIN_MENU === 'true';
+  if (main._count.items > 0 && !reset) {
+    console.log('Header menu already has items — left as is (SEED_RESET_MAIN_MENU=true rebuilds it).');
+    return;
+  }
+  if (reset) await prisma.menuItem.deleteMany({ where: { menuId: main.id } });
+
+  const create = async (item: MenuSeedItem, sortOrder: number, parentId: string | null) => {
+    const row = await prisma.menuItem.create({
+      data: {
+        menuId: main.id,
+        parentId,
+        label: item.label,
+        type: item.type,
+        categoryId: item.type === 'CATEGORY' ? item.targetId : null,
+        collectionId: item.type === 'COLLECTION' ? item.targetId : null,
+        highlight: item.highlight ?? null,
+        sortOrder,
+      },
+      select: { id: true },
+    });
+    for (const [i, child] of (item.children ?? []).entries()) await create(child, i, row.id);
+  };
+  for (const [i, item] of menu.entries()) await create(item, i, null);
+  console.log(`Header menu built with ${menu.length} sections.`);
 }
 
 interface SampleProduct {
@@ -203,7 +336,7 @@ const PRODUCTS: SampleProduct[] = [
   {
     name: 'Ivory Zardozi Bridal Lehenga',
     code: 'IZL',
-    categorySlug: 'bridal-lehenga',
+    categorySlug: 'bridal-wear-lehengas',
     description: 'A hand-finished ivory lehenga with fine zardozi detailing, made for the Barat day.',
     details: 'Includes lehenga, short shirt and net dupatta. Made to order in our studio.',
     price: 249900,
@@ -217,7 +350,7 @@ const PRODUCTS: SampleProduct[] = [
   {
     name: 'Crimson Velvet Gharara Set',
     code: 'CVG',
-    categorySlug: 'bridal-gharara',
+    categorySlug: 'bridal-wear-gharara',
     description: 'A deep crimson gharara with a velvet shirt and gota-edged dupatta.',
     details: 'Includes shirt, gharara and dupatta. Made to order.',
     price: 189900,
@@ -232,7 +365,7 @@ const PRODUCTS: SampleProduct[] = [
   {
     name: 'Mint Gota Mehndi Sharara',
     code: 'MGS',
-    categorySlug: 'bridal-sharara',
+    categorySlug: 'bridal-wear-sharara',
     description: 'A light, playful sharara in mint with gota and mirror accents for the Mehndi.',
     details: 'Includes short kurti, sharara and chiffon dupatta. Ready to ship.',
     price: 89900,
@@ -247,7 +380,7 @@ const PRODUCTS: SampleProduct[] = [
   {
     name: 'Emerald Chiffon Formal Maxi',
     code: 'ECM',
-    categorySlug: 'formals-maxi',
+    categorySlug: 'womens-wear-maxi-dresses',
     description: 'A flowing emerald maxi with a scattered sequin bodice, ideal for a Walima or formal evening.',
     details: 'Includes maxi and matching dupatta. Ready to ship.',
     price: 49900,
@@ -261,7 +394,7 @@ const PRODUCTS: SampleProduct[] = [
   {
     name: 'Champagne Raw Silk Sherwani',
     code: 'CRS',
-    categorySlug: 'menswear-sherwani',
+    categorySlug: 'menswear-sherwanis',
     description: 'A classic champagne sherwani in raw silk with tonal thread embroidery.',
     details: 'Includes sherwani, kurta and churidar. Made to order.',
     price: 69900,
@@ -281,7 +414,8 @@ async function seedProducts(categoryIds: Map<string, string>, attributeIds: Map<
     const slug = slugify(p.name);
     const product = await prisma.product.upsert({
       where: { slug },
-      update: {},
+      // Sample products only: keep them in the current categories from shop-menu.ts
+      update: { categoryId },
       create: {
         name: p.name,
         slug,
@@ -340,6 +474,8 @@ async function main() {
   const categoryIds = await seedCategories();
   // The sample dresses are for development and demos only
   if (process.env.SEED_SAMPLE_PRODUCTS !== 'false') await seedProducts(categoryIds, attributeIds);
+  if (process.env.SEED_REMOVE_UNLISTED_CATEGORIES === 'true') await removeUnlistedCategories(categoryIds);
+  await seedShopSections(categoryIds, attributeIds);
 
   const counts = {
     currencies: await prisma.currency.count(),
@@ -348,11 +484,34 @@ async function main() {
     attributes: await prisma.attribute.count(),
     attributeValues: await prisma.attributeValue.count(),
     categories: await prisma.category.count(),
+    collections: await prisma.collection.count(),
+    menuItems: await prisma.menuItem.count(),
     products: await prisma.product.count(),
     variants: await prisma.productVariant.count(),
     admins: await prisma.adminUser.count(),
   };
   console.log('Seed complete:', counts);
+  await refreshStorefront();
+}
+
+// The seed writes to the database directly, so tell the website to drop its cached pages
+// (same call the admin makes). Skipped quietly if the website isn't running.
+async function refreshStorefront() {
+  const url = process.env.FRONTEND_REVALIDATE_URL;
+  const secret = process.env.REVALIDATE_SECRET;
+  if (!url || !secret) return;
+  const tags = ['menu:main', 'menu:footer', 'categories', 'collections', 'products', 'currencies', 'settings', 'pages', 'page:home'];
+  try {
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', 'x-revalidate-secret': secret },
+      body: JSON.stringify({ tags }),
+      signal: AbortSignal.timeout(5000),
+    });
+    console.log(res.ok ? 'Website cache refreshed.' : `Website cache refresh failed (HTTP ${res.status}).`);
+  } catch {
+    console.log('Website not running — its cache will show the new data after it restarts.');
+  }
 }
 
 main()

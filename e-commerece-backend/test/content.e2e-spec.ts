@@ -87,7 +87,7 @@ describe('Uploads, content, redirects & revalidation (e2e)', () => {
     const pages = await admin.get('/api/admin/pages').expect(200);
     const home = pages.body.find((p: { slug: string }) => p.slug === 'home');
     const categories = await admin.get('/api/admin/categories').expect(200);
-    const bridal = categories.body.find((c: { slug: string }) => c.slug === 'bridal');
+    const bridal = categories.body.find((c: { slug: string }) => c.slug === 'bridal-wear');
 
     const collection = await admin
       .post('/api/admin/collections')
@@ -306,17 +306,21 @@ describe('Uploads, content, redirects & revalidation (e2e)', () => {
     await storefront.waitForTag('settings');
 
     // Category page: same listing and facets as collections, including sub-categories
-    const category = await http().get('/api/categories/bridal?currency=AUD').expect(200);
-    expect(category.body.category).toMatchObject({ slug: 'bridal', breadcrumb: [{ slug: 'bridal', name: 'Bridal' }] });
+    const category = await http().get('/api/categories/bridal-wear?currency=AUD').expect(200);
+    expect(category.body.category).toMatchObject({
+      slug: 'bridal-wear',
+      breadcrumb: [{ slug: 'bridal-wear', name: 'Bridal Wear' }],
+    });
     expect(category.body.category.children.map((c: { name: string }) => c.name)).toEqual([
-      'Lehenga',
+      'Lehengas',
       'Sharara',
       'Gharara',
+      'Bridal Sarees',
     ]);
     expect(category.body.products.total).toBeGreaterThanOrEqual(3);
     expect(category.body.sortOptions).not.toContain('MANUAL');
     expect(category.body.facets.attributes.length).toBeGreaterThan(0);
-    const mehndi = await http().get('/api/categories/bridal?attr=occasion.mehndi').expect(200);
+    const mehndi = await http().get('/api/categories/bridal-wear?attr=occasion.mehndi').expect(200);
     expect(mehndi.body.products.items.map((p: { name: string }) => p.name)).toContain('Mint Gota Mehndi Sharara');
     await http().get('/api/categories/no-such-category').expect(404);
   });
