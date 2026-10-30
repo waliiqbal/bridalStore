@@ -12,6 +12,7 @@ export interface CollectionFormState {
   seoContent: string;
   bannerImageUrl: string | null;
   mobileBannerImageUrl: string | null;
+  tileImageUrl: string | null;
   noticeText: string;
   filterAttributeIds: string[];
   isPublished: boolean;
@@ -50,6 +51,7 @@ export function toFormState(collection: AdminCollection | null): CollectionFormS
     seoContent: collection?.seoContent ?? "",
     bannerImageUrl: collection?.bannerImageUrl ?? null,
     mobileBannerImageUrl: collection?.mobileBannerImageUrl ?? null,
+    tileImageUrl: collection?.tileImageUrl ?? null,
     noticeText: collection?.noticeText ?? "",
     filterAttributeIds: collection?.filterAttributeIds ?? [],
     isPublished: collection?.isPublished ?? true,
@@ -92,6 +94,7 @@ export function toCollectionInput(form: CollectionFormState, savedSlug?: string)
     seoContent: orNull(form.seoContent),
     bannerImageUrl: form.bannerImageUrl,
     mobileBannerImageUrl: form.mobileBannerImageUrl,
+    tileImageUrl: form.tileImageUrl,
     noticeText: orNull(form.noticeText),
     filterAttributeIds: form.filterAttributeIds,
     isPublished: form.isPublished,

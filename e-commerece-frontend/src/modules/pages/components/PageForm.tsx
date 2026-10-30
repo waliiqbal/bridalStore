@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import type { CategoryOption } from "@/modules/catalog/lib/category-options";
 import type { CollectionListItem } from "@/modules/collections/types/collections";
 import { Button, LinkButton } from "@/shared/admin/Button";
 import { useAdminUi } from "@/shared/admin/AdminUiProvider";
@@ -23,11 +24,13 @@ import { SectionsEditor } from "./SectionsEditor";
 export function PageForm({
   page,
   collections,
+  categories,
   linkGroups,
   onChanged,
 }: {
   page: AdminPage | null;
   collections: CollectionListItem[];
+  categories: CategoryOption[];
   linkGroups: LinkGroup[];
   // Reload the saved page (after blocks change, or after saving)
   onChanged: () => void;
@@ -100,6 +103,7 @@ export function PageForm({
           pageId={page.id}
           sections={page.sections}
           collections={collections}
+          categories={categories}
           linkGroups={linkGroups}
           onChanged={onChanged}
         />

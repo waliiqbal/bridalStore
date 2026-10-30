@@ -31,6 +31,11 @@ export class CreateCategoryDto {
   @MaxLength(2000)
   imageUrl?: string | null;
 
+  @IsOptional()
+  @IsString()
+  @MaxLength(2000)
+  tileImageUrl?: string | null;
+
   // null = top-level category
   @IsOptional()
   @IsString()

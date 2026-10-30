@@ -1,6 +1,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import type { PublicSection } from "../../types/page";
+import { ProductScroller } from "./ProductScroller";
 import { SectionHeader } from "./SectionHeader";
 
 // Picture tiles that open collections (e.g. Eid Edit, Nikah Edit). Each tile uses the collection's
@@ -12,12 +13,15 @@ export function TilesBlock({ section }: { section: PublicSection }) {
   return (
     <section className="mx-auto w-full max-w-[1600px] px-4 lg:px-6">
       <SectionHeader title={section.title} subtitle={section.subtitle} center />
-      <ul className={`grid grid-cols-2 gap-3 sm:gap-5 ${tiles.length >= 4 ? "lg:grid-cols-4" : "lg:grid-cols-3"}`}>
+      <ProductScroller label={section.title ?? "Collections"}>
         {tiles.map((tile) => {
-          const picture = tile.mobileImageUrl ?? tile.imageUrl;
+          const picture = tile.tileImageUrl ?? tile.mobileImageUrl ?? tile.imageUrl;
           return (
-            <li key={tile.slug}>
-              <Link href={`/collections/${tile.slug}`} className="group relative block aspect-[4/5] overflow-hidden bg-cream">
+            <li
+              key={tile.slug}
+              className="w-[calc(50%-0.375rem)] shrink-0 snap-start sm:w-[calc(50%-0.5rem)] lg:w-[calc(25%-0.75rem)]"
+            >
+              <Link href={`/${tile.kind === "category" ? "categories" : "collections"}/${tile.slug}`} className="group relative block aspect-[4/5] overflow-hidden bg-cream">
                 {picture && (
                   <Image
                     src={picture}
@@ -41,7 +45,7 @@ export function TilesBlock({ section }: { section: PublicSection }) {
             </li>
           );
         })}
-      </ul>
+      </ProductScroller>
     </section>
   );
 }

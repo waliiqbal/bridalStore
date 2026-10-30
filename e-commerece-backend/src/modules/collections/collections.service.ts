@@ -21,6 +21,7 @@ const PUBLIC_SELECT = {
   noticeText: true,
   bannerImageUrl: true,
   mobileBannerImageUrl: true,
+  tileImageUrl: true,
   filterAttributeIds: true,
   isPublished: true,
   seoTitle: true,

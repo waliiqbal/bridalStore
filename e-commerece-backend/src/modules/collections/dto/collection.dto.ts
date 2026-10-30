@@ -96,6 +96,11 @@ export class CreateCollectionDto {
 
   @IsOptional()
   @IsString()
+  @MaxLength(2000)
+  tileImageUrl?: string | null;
+
+  @IsOptional()
+  @IsString()
   @MaxLength(1000)
   noticeText?: string | null;
 

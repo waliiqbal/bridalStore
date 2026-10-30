@@ -7,7 +7,7 @@ export const getPage = (slug: string, currency: string) =>
   storefrontFetchOrNull<PublicPage>(
     `/pages/${encodeURIComponent(slug)}?currency=${encodeURIComponent(currency)}`,
     {
-      tags: [`page:${slug}`, "pages", "faqs", "collections", "products"],
+      tags: [`page:${slug}`, "pages", "faqs", "collections", "categories", "products"],
     },
   );
 

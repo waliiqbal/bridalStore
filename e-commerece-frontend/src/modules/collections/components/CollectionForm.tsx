@@ -324,6 +324,16 @@ export function CollectionForm({
                 alt={form.title}
               />
             </Field>
+            <Field
+              label="Homepage tile picture (optional)"
+              hint="A tall picture, 1200 × 1500 px, shown when this collection appears as a tile on the homepage. If empty, the phone banner or banner is used."
+            >
+              <SingleImageField
+                value={form.tileImageUrl}
+                onChange={(url) => set("tileImageUrl", url)}
+                alt={form.title}
+              />
+            </Field>
           </div>
 
           <Field label="Introduction" htmlFor="c-intro" hint="A short welcome shown above the products.">

@@ -33,7 +33,7 @@ export const SECTION_TYPES: SectionTypeDef[] = [
   {
     type: "COLLECTION_TILES",
     label: "Collection tiles",
-    description: "Picture tiles that link to your collections, like Bridal, Formals and Eid Edit.",
+    description: "Picture tiles that link to your collections or categories, like Bridal, Formals and Eid Edit.",
     icon: LuGrid2X2,
   },
   {
@@ -162,9 +162,9 @@ export function validateSectionForm(form: SectionFormState): SectionErrors {
   if (type === "RICH_TEXT" && !plainText(form.body)) errors.body = "Please write some text.";
   if (isProductBlock(type) && !form.collectionId) errors.collection = "Please choose a collection.";
   if (type === "COLLECTION_TILES") {
-    if (form.collectionIds.length === 0) errors.collections = "Please choose at least one collection.";
+    if (form.collectionIds.length === 0) errors.collections = "Please choose at least one collection or category.";
     else if (form.collectionIds.length > MAX_TILES)
-      errors.collections = `You can show up to ${MAX_TILES} collections.`;
+      errors.collections = `You can show up to ${MAX_TILES} tiles.`;
   }
   if (isProductBlock(type)) {
     const limit = Number(form.productLimit);

@@ -34,6 +34,7 @@ const ADMIN_DETAIL_SELECT = {
   seoContent: true,
   bannerImageUrl: true,
   mobileBannerImageUrl: true,
+  tileImageUrl: true,
   noticeText: true,
   filterAttributeIds: true,
   isPublished: true,
