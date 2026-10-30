@@ -8,6 +8,7 @@ import { getMenu, getSettings } from "@/modules/shop/api/shop.api";
 import { Logo } from "@/shared/components/Logo";
 import { AccountLink } from "./AccountLink";
 import { CartButton } from "./CartButton";
+import { HeaderSearch } from "./HeaderSearch";
 import { MegaMenu } from "./MegaMenu";
 import { MobileAccountLink } from "./MobileAccountLink";
 import { MobileMenu } from "./MobileMenu";
@@ -37,7 +38,8 @@ export async function Header({ currency }: { currency: string }) {
       )}
 
       <div className="relative border-b border-line">
-        <div className="mx-auto grid max-w-[1600px] grid-cols-[1fr_auto_1fr] items-center gap-2 px-3 py-3 sm:gap-3 sm:px-4 lg:px-6">
+        {/* Logo always centred. Left: menu button (phones). Right: search bar (wide screens) and icons */}
+        <div className="mx-auto grid max-w-[1600px] grid-cols-[1fr_auto_1fr] items-center gap-2 px-3 py-3 sm:gap-3 sm:px-4 lg:gap-8 lg:px-6 lg:py-4">
           <div className="flex items-center">
             <MobileMenu
               items={items}
@@ -60,30 +62,38 @@ export async function Header({ currency }: { currency: string }) {
           </div>
 
           {/* The name matches the words in the logo, which screen-reader software needs */}
-          <Link href="/" aria-label={storeName}>
+          <Link href="/" aria-label={storeName} className="shrink-0">
             <Logo preload />
           </Link>
 
-          <div className="flex items-center justify-end gap-1 sm:gap-2 lg:gap-3">
+          <div className="flex min-w-0 items-center justify-end gap-1 sm:gap-2 xl:gap-3">
+            {/* The full search bar needs a wide screen; smaller screens get the magnifying glass */}
+            <div className="hidden min-w-0 flex-1 justify-end xl:flex">
+              <div className="w-full max-w-72">
+                <HeaderSearch />
+              </div>
+            </div>
             {/* On phones the currency is in the slide-out menu, to leave room for the icons */}
             <div className="hidden sm:block">
-              <CurrencySwitcher currencies={selected.currencies} current={selected.code} />
+              <CurrencySwitcher currencies={selected.currencies} current={selected.code} compact />
             </div>
-            <SearchButton />
-            <WishlistLink />
-            <AccountLink />
-            <CartButton />
+            <div className="xl:hidden">
+              <SearchButton />
+            </div>
             {chat && (
               <a
                 href={chat}
                 target="_blank"
                 rel="noopener noreferrer"
                 aria-label="Chat with us on WhatsApp"
-                className="hidden hover:text-gold sm:block"
+                className="hidden h-10 w-10 items-center justify-center text-[#25D366] transition hover:scale-110 sm:flex"
               >
-                <FaWhatsapp className="h-6 w-6" />
+                <FaWhatsapp className="h-7 w-7" />
               </a>
             )}
+            <AccountLink />
+            <WishlistLink />
+            <CartButton />
           </div>
         </div>
         <MegaMenu items={items} />

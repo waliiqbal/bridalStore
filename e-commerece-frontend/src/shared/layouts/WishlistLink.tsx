@@ -11,14 +11,12 @@ export function WishlistLink() {
     <Link
       href="/wishlist"
       aria-label={count > 0 ? `Wishlist, ${count} saved` : "Wishlist"}
-      className="relative hidden h-9 w-9 items-center justify-center hover:text-gold sm:flex"
+      className="relative hidden h-10 w-10 items-center justify-center hover:text-gold sm:flex"
     >
-      <LuHeart className="h-5 w-5" />
-      {count > 0 && (
-        <span className="absolute right-0 top-0 flex h-4 min-w-4 items-center justify-center rounded-full bg-black px-1 text-[10px] font-medium text-white">
-          {count}
-        </span>
-      )}
+      <LuHeart className="h-6.5 w-6.5" strokeWidth={1.6} />
+      <span className="absolute right-0 top-0 flex h-4.5 min-w-4.5 items-center justify-center rounded-full bg-gold px-1 text-[10px] font-semibold text-white">
+        {count}
+      </span>
     </Link>
   );
 }

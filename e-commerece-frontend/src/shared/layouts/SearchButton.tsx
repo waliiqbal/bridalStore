@@ -42,9 +42,9 @@ export function SearchButton() {
         onClick={() => setOpen((v) => !v)}
         aria-label={open ? "Close search" : "Search"}
         aria-expanded={open}
-        className="flex h-9 w-9 items-center justify-center hover:text-gold"
+        className="flex h-10 w-10 items-center justify-center hover:text-gold"
       >
-        {open ? <LuX className="h-5 w-5" /> : <LuSearch className="h-5 w-5" />}
+        {open ? <LuX className="h-6 w-6" /> : <LuSearch className="h-6 w-6" strokeWidth={1.8} />}
       </button>
 
       {open && (
