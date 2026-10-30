@@ -2,6 +2,7 @@
 
 import { useMemo } from "react";
 import { getCategoryTree } from "@/modules/catalog/api/catalog.api";
+import { flattenCategories } from "@/modules/catalog/lib/category-options";
 import { listCollections } from "@/modules/collections/api/collections.api";
 import { Button } from "@/shared/admin/Button";
 import { useAdminQuery } from "@/shared/admin/hooks";
@@ -21,6 +22,8 @@ export function PageEditor({ pageId }: { pageId?: string }) {
     () => (collections && categories && pages ? buildLinkOptions({ collections, categories, pages }) : []),
     [collections, categories, pages],
   );
+
+  const categoryOptions = useMemo(() => (categories ? flattenCategories(categories) : []), [categories]);
 
   const failure = meta.error ?? page.error;
   const current = page.data;
@@ -64,6 +67,7 @@ export function PageEditor({ pageId }: { pageId?: string }) {
           key={current?.updatedAt ?? "new"}
           page={current}
           collections={collections}
+          categories={categoryOptions}
           linkGroups={linkGroups}
           onChanged={page.reload}
         />

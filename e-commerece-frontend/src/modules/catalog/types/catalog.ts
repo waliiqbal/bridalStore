@@ -133,6 +133,7 @@ export interface CategoryFull {
   slug: string;
   description: string | null;
   imageUrl: string | null;
+  tileImageUrl: string | null;
   parentId: string | null;
   sortOrder: number;
   isVisible: boolean;
@@ -146,6 +147,7 @@ export interface CategoryInput {
   slug?: string;
   description?: string | null;
   imageUrl?: string | null;
+  tileImageUrl?: string | null;
   parentId?: string | null;
   isVisible?: boolean;
   showInMenu?: boolean;

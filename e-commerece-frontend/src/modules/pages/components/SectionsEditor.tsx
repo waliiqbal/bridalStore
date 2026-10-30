@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { LuPencil, LuPlus, LuTrash2 } from "react-icons/lu";
+import type { CategoryOption } from "@/modules/catalog/lib/category-options";
 import type { CollectionListItem } from "@/modules/collections/types/collections";
 import { Button } from "@/shared/admin/Button";
 import { useAdminUi } from "@/shared/admin/AdminUiProvider";
@@ -19,12 +20,14 @@ export function SectionsEditor({
   pageId,
   sections,
   collections,
+  categories,
   linkGroups,
   onChanged,
 }: {
   pageId: string;
   sections: PageSection[];
   collections: CollectionListItem[];
+  categories: CategoryOption[];
   linkGroups: LinkGroup[];
   onChanged: () => void;
 }) {
@@ -33,7 +36,9 @@ export function SectionsEditor({
   const [target, setTarget] = useState<SectionTarget | null>(null);
 
   const collectionTitle = (id: string) =>
-    collections.find((c) => c.id === id)?.title ?? "A deleted collection";
+    collections.find((c) => c.id === id)?.title ??
+    categories.find((c) => c.id === id)?.label ??
+    "A deleted collection";
 
   async function reorder(next: PageSection[]) {
     try {
@@ -174,6 +179,7 @@ export function SectionsEditor({
           pageId={pageId}
           target={target}
           collections={collections}
+          categories={categories}
           linkGroups={linkGroups}
           onClose={() => setTarget(null)}
           onSaved={() => {

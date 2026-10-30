@@ -34,8 +34,15 @@ export interface PublicSection {
   // Product slider / grid
   collection?: { title: string; slug: string };
   products?: ProductCardData[];
-  // Collection tiles (the picture is the collection's banner)
-  collections?: { title: string; slug: string; imageUrl: string | null; mobileImageUrl: string | null }[];
+  // Collection tiles (the picture is the collection's tile picture, else its phone banner, else its banner)
+  collections?: {
+    kind: "collection" | "category";
+    title: string;
+    slug: string;
+    imageUrl: string | null;
+    mobileImageUrl: string | null;
+    tileImageUrl: string | null;
+  }[];
 }
 
 export interface PublicPage {

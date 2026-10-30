@@ -215,8 +215,12 @@ export class PagesAdminService {
     if (errors.length) throw new BadRequestException(errors);
 
     const ids = [...new Set(referencedCollectionIds(section))];
-    const [found, productSections] = await Promise.all([
+    // Tiles may point at collections or categories; the ids never clash
+    const [foundCollections, foundCategories, productSections] = await Promise.all([
       ids.length ? this.prisma.collection.count({ where: { id: { in: ids } } }) : 0,
+      section.type === 'COLLECTION_TILES' && ids.length
+        ? this.prisma.category.count({ where: { id: { in: ids } } })
+        : 0,
       isProductSection(section.type)
         ? this.prisma.pageSection.count({
             where: {
@@ -227,8 +231,8 @@ export class PagesAdminService {
           })
         : 0,
     ]);
-    if (found !== ids.length) {
-      throw new BadRequestException('One or more selected collections no longer exist');
+    if (foundCollections + foundCategories !== ids.length) {
+      throw new BadRequestException('One or more selected collections or categories no longer exist');
     }
     if (productSections >= MAX_PRODUCT_SECTIONS_PER_PAGE) {
       throw new BadRequestException(

@@ -131,6 +131,8 @@ model Category {
   slug           String     @unique
   description    String?
   imageUrl       String?
+  // Portrait picture for homepage tiles (4:5); falls back to imageUrl
+  tileImageUrl   String?
   parentId       String?
   parent         Category?  @relation("CategoryTree", fields: [parentId], references: [id], onDelete: SetNull)
   children       Category[] @relation("CategoryTree")
@@ -295,6 +297,8 @@ model Collection {
   seoContent           String?
   bannerImageUrl       String?
   mobileBannerImageUrl String?
+  // Portrait picture for the homepage tiles (4:5); falls back to the phone banner, then the banner
+  tileImageUrl         String?
   // Small notice above the grid, e.g. offer T&Cs
   noticeText           String?
   // Which attribute filters to show on this page; empty = all filterable
@@ -709,7 +713,8 @@ model PageSection {
   // COLLECTION_GRID / PRODUCT_CAROUSEL: which collection to pull products from
   collectionId  String?
   collection    Collection?     @relation(fields: [collectionId], references: [id], onDelete: SetNull)
-  // COLLECTION_TILES: which collections to show as tiles
+  // COLLECTION_TILES: which collections or categories to show as tiles, in order
+  // (each id is looked up as a collection and as a category; ids never clash)
   collectionIds String[]
   productLimit  Int             @default(8)
   // Anything extra (layout, colours) without new columns

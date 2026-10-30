@@ -50,6 +50,7 @@ const SECTION_COLLECTION_SELECT = {
   description: true,
   bannerImageUrl: true,
   mobileBannerImageUrl: true,
+  tileImageUrl: true,
   type: true,
   matchAllRules: true,
   defaultSort: true,
@@ -57,6 +58,15 @@ const SECTION_COLLECTION_SELECT = {
 } satisfies Prisma.CollectionSelect;
 
 type SectionCollection = Prisma.CollectionGetPayload<{ select: typeof SECTION_COLLECTION_SELECT }>;
+
+type SectionTile = {
+  kind: 'collection' | 'category';
+  title: string;
+  slug: string;
+  imageUrl: string | null;
+  mobileImageUrl: string | null;
+  tileImageUrl: string | null;
+};
 
 type SectionBase = {
   id: string;
@@ -77,7 +87,8 @@ export type PublicSection = SectionBase &
       }
     | {
         type: 'COLLECTION_TILES';
-        collections: { title: string; slug: string; imageUrl: string | null; mobileImageUrl: string | null }[];
+        // Despite the name, a tile can be a collection or a category (`kind` tells which)
+        collections: SectionTile[];
       }
     | { type: 'FAQ'; faqs: { id: string; question: string; answer: string }[] }
     | { type: 'RICH_TEXT'; body: string | null }
@@ -120,12 +131,22 @@ export class PagesService {
       ),
     ];
     const hasFaq = page.sections.some((s) => s.type === 'FAQ');
+    // Tiles can also point at categories; one query for all of them
+    const tileIds = [
+      ...new Set(page.sections.flatMap((s) => (s.type === 'COLLECTION_TILES' ? s.collectionIds : []))),
+    ];
 
-    const [collectionRows, faqs] = await Promise.all([
+    const [collectionRows, categoryRows, faqs] = await Promise.all([
       collectionIds.length
         ? this.prisma.collection.findMany({
             where: { id: { in: collectionIds }, isPublished: true },
             select: SECTION_COLLECTION_SELECT,
+          })
+        : [],
+      tileIds.length
+        ? this.prisma.category.findMany({
+            where: { id: { in: tileIds }, isVisible: true },
+            select: { id: true, name: true, slug: true, imageUrl: true, tileImageUrl: true },
           })
         : [],
       hasFaq
@@ -137,6 +158,7 @@ export class PagesService {
         : [],
     ]);
     const collections = new Map(collectionRows.map((c) => [c.id, c]));
+    const categoryTiles = new Map(categoryRows.map((c) => [c.id, c]));
 
     // Product sections whose collection is published, capped per page.
     const productSections = page.sections
@@ -182,15 +204,33 @@ export class PagesService {
           ];
         }
         case 'COLLECTION_TILES': {
-          const tiles = section.collectionIds
-            .map((id) => collections.get(id))
-            .filter((c): c is SectionCollection => !!c)
-            .map((c) => ({
-              title: c.title,
-              slug: c.slug,
-              imageUrl: c.bannerImageUrl,
-              mobileImageUrl: c.mobileBannerImageUrl,
-            }));
+          const tiles = section.collectionIds.flatMap((id): SectionTile[] => {
+            const collection: SectionCollection | undefined = collections.get(id);
+            if (collection) {
+              return [
+                {
+                  kind: 'collection' as const,
+                  title: collection.title,
+                  slug: collection.slug,
+                  imageUrl: collection.bannerImageUrl,
+                  mobileImageUrl: collection.mobileBannerImageUrl,
+                  tileImageUrl: collection.tileImageUrl,
+                },
+              ];
+            }
+            const category = categoryTiles.get(id);
+            if (!category) return [];
+            return [
+              {
+                kind: 'category' as const,
+                title: category.name,
+                slug: category.slug,
+                imageUrl: category.imageUrl,
+                mobileImageUrl: null,
+                tileImageUrl: category.tileImageUrl,
+              },
+            ];
+          });
           return tiles.length ? [{ ...base, type: section.type, collections: tiles }] : [];
         }
         case 'FAQ':

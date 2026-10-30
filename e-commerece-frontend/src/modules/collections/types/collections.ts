@@ -58,6 +58,7 @@ export interface AdminCollection {
   seoContent: string | null;
   bannerImageUrl: string | null;
   mobileBannerImageUrl: string | null;
+  tileImageUrl: string | null;
   noticeText: string | null;
   filterAttributeIds: string[];
   isPublished: boolean;
@@ -80,6 +81,7 @@ export interface CollectionInput {
   seoContent?: string | null;
   bannerImageUrl?: string | null;
   mobileBannerImageUrl?: string | null;
+  tileImageUrl?: string | null;
   noticeText?: string | null;
   filterAttributeIds?: string[];
   isPublished?: boolean;

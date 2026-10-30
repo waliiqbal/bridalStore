@@ -286,6 +286,7 @@ interface CategoryForm {
   parentId: string;
   description: string;
   imageUrl: string | null;
+  tileImageUrl: string | null;
   isVisible: boolean;
   showInMenu: boolean;
   seoTitle: string;
@@ -298,6 +299,7 @@ const EMPTY_FORM: CategoryForm = {
   parentId: "",
   description: "",
   imageUrl: null,
+  tileImageUrl: null,
   isVisible: true,
   showInMenu: true,
   seoTitle: "",
@@ -339,6 +341,7 @@ function CategoryEditor({
                   parentId: existing.data.parentId ?? "",
                   description: existing.data.description ?? "",
                   imageUrl: existing.data.imageUrl,
+                  tileImageUrl: existing.data.tileImageUrl,
                   isVisible: existing.data.isVisible,
                   showInMenu: existing.data.showInMenu,
                   seoTitle: existing.data.seoTitle ?? "",
@@ -400,6 +403,7 @@ function CategoryFormBody({
         parentId: form.parentId || null,
         description: orNull(form.description),
         imageUrl: form.imageUrl,
+        tileImageUrl: form.tileImageUrl,
         isVisible: form.isVisible,
         showInMenu: form.showInMenu,
         seoTitle: orNull(form.seoTitle),
@@ -447,9 +451,21 @@ function CategoryFormBody({
         />
       </Field>
 
-      <Field label="Picture (optional)">
-        <SingleImageField value={form.imageUrl} onChange={(url) => set("imageUrl", url)} alt={form.name} />
-      </Field>
+      <div className="grid gap-5 sm:grid-cols-2">
+        <Field label="Banner picture (optional)" hint="A wide picture shown at the top of this category's page.">
+          <SingleImageField value={form.imageUrl} onChange={(url) => set("imageUrl", url)} alt={form.name} />
+        </Field>
+        <Field
+          label="Homepage tile picture (optional)"
+          hint="A tall picture, 1200 × 1500 px, shown when this category appears as a tile on the homepage. If empty, the banner is used."
+        >
+          <SingleImageField
+            value={form.tileImageUrl}
+            onChange={(url) => set("tileImageUrl", url)}
+            alt={form.name}
+          />
+        </Field>
+      </div>
 
       <Field label="Short description (optional)" htmlFor="c-desc">
         <textarea

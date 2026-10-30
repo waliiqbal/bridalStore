@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { LuTrash2 } from "react-icons/lu";
+import type { CategoryOption } from "@/modules/catalog/lib/category-options";
 import type { CollectionListItem } from "@/modules/collections/types/collections";
 import { SingleImageField } from "@/modules/uploads/components/SingleImageField";
 import { Button } from "@/shared/admin/Button";
@@ -34,6 +35,7 @@ export function SectionEditor({
   pageId,
   target,
   collections,
+  categories,
   linkGroups,
   onClose,
   onSaved,
@@ -41,6 +43,7 @@ export function SectionEditor({
   pageId: string;
   target: SectionTarget;
   collections: CollectionListItem[];
+  categories: CategoryOption[];
   linkGroups: LinkGroup[];
   onClose: () => void;
   onSaved: () => void;
@@ -196,15 +199,16 @@ export function SectionEditor({
           <>
             {titleBox("Heading (optional)", undefined, "e.g. Shop by occasion")}
             {subtitleBox("Smaller line (optional)")}
-            <Field label="Collections to show" required error={errors.collections}>
+            <Field label="What to show in this row" required error={errors.collections}>
               <TilesPicker
                 collections={collections}
+                categories={categories}
                 selected={form.collectionIds}
                 onChange={(ids) => set("collectionIds", ids)}
               />
             </Field>
             <Notice>
-              Each tile uses the banner picture from its collection, so make sure your collections have one.
+              Each tile uses the &ldquo;Homepage tile picture&rdquo; of its collection or category (or its banner if there isn&rsquo;t one), so make sure each one has a picture.
             </Notice>
           </>
         )}
@@ -321,21 +325,47 @@ export function SectionEditor({
   );
 }
 
-// The collections chosen for a tiles block, in the order they appear
+// The collections and categories chosen for a tiles block, in the order they appear
 function TilesPicker({
   collections,
+  categories,
   selected,
   onChange,
 }: {
   collections: CollectionListItem[];
+  categories: CategoryOption[];
   selected: string[];
   onChange: (ids: string[]) => void;
 }) {
-  const title = (id: string) => collections.find((c) => c.id === id)?.title ?? "Deleted collection";
+  const title = (id: string) =>
+    collections.find((c) => c.id === id)?.title ??
+    categories.find((c) => c.id === id)?.label ??
+    "Deleted collection or category";
+  // One row shows collections or categories, never a mix
+  const [mode, setMode] = useState<"collections" | "categories">(() =>
+    selected.length > 0 && categories.some((c) => c.id === selected[0]) ? "categories" : "collections",
+  );
   const remaining = collections.filter((c) => !selected.includes(c.id));
+  const remainingCategories = categories.filter((c) => !selected.includes(c.id));
+  const options =
+    mode === "collections"
+      ? remaining.map((c) => ({ id: c.id, label: c.title + (c.isPublished ? "" : " (draft)") }))
+      : remainingCategories.map((c) => ({ id: c.id, label: c.label }));
+  const noun = mode === "collections" ? "collection" : "category";
 
   return (
     <div className="space-y-3">
+      <Select
+        aria-label="This row shows"
+        value={mode}
+        onChange={(event) => {
+          setMode(event.target.value as "collections" | "categories");
+          onChange([]);
+        }}
+      >
+        <option value="collections">Collections (like Bridal, Eid Edit)</option>
+        <option value="categories">Categories (like Lehenga, Sherwani)</option>
+      </Select>
       {selected.length > 0 && (
         <ReorderList
           items={selected}
@@ -361,17 +391,14 @@ function TilesPicker({
       {selected.length < MAX_TILES && (
         <div className="flex items-center gap-2">
           <Select
-            aria-label="Add a collection"
+            aria-label={`Add a ${noun}`}
             value=""
             onChange={(event) => event.target.value && onChange([...selected, event.target.value])}
           >
-            <option value="">
-              {remaining.length === 0 ? "No more collections to add" : "Add a collection…"}
-            </option>
-            {remaining.map((collection) => (
-              <option key={collection.id} value={collection.id}>
-                {collection.title}
-                {collection.isPublished ? "" : " (draft)"}
+            <option value="">{options.length === 0 ? `No more ${noun === "category" ? "categories" : "collections"} to add` : `Add a ${noun}…`}</option>
+            {options.map((option) => (
+              <option key={option.id} value={option.id}>
+                {option.label}
               </option>
             ))}
           </Select>
