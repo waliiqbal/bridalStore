@@ -48,6 +48,8 @@ export function ProductView({
   const { add, busy, error } = useCart();
   // Only show the server's reason ("Only 2 available.") for the add that just failed
   const [failed, setFailed] = useState(false);
+  // "Add to cart" was pressed before choosing a colour/size: say what's missing, in red
+  const [prompted, setPrompted] = useState(false);
 
   const selection = { colour, size };
   const variant = selectedVariant(variants, selection, colours, sizes);
@@ -71,7 +73,10 @@ export function ProductView({
   }, [product]);
 
   async function addToBag() {
-    if (!variant) return;
+    if (!complete || !variant) {
+      setPrompted(true);
+      return;
+    }
     setFailed(false);
     const added = await add(variant.id, 1);
     setFailed(!added);
@@ -85,6 +90,7 @@ export function ProductView({
 
   function chooseColour(value: string) {
     setFailed(false);
+    setPrompted(false);
     setColour(value);
     // A size that this colour doesn't have in stock can't stay chosen
     if (size && !sizeAvailable(variants, size, value)) setSize(null);
@@ -153,6 +159,7 @@ export function ProductView({
               value={size}
               onChange={(value) => {
                 setFailed(false);
+                setPrompted(false);
                 setSize(value);
               }}
               action={
@@ -165,8 +172,11 @@ export function ProductView({
           )}
         </div>
 
-        <p aria-live="polite" className={`mt-5 text-sm font-medium ${STOCK_TONE[stock.tone]}`}>
-          {complete || stock.tone === "out" ? stock.text : `Choose ${missing}`}
+        <p
+          aria-live="polite"
+          className={`mt-5 text-sm font-medium ${prompted && !complete ? "text-red-600" : STOCK_TONE[stock.tone]}`}
+        >
+          {complete || stock.tone === "out" ? stock.text : `${prompted ? "Please choose" : "Choose"} ${missing}`}
         </p>
 
         {delivery && (
@@ -180,7 +190,8 @@ export function ProductView({
           <button
             type="button"
             onClick={addToBag}
-            disabled={!complete || !variant?.inStock || busy}
+            // Blocked only when sold out; pressed without a choice, it says what's missing
+            disabled={(complete ? !variant?.inStock : stock.tone === "out") || busy}
             className="h-14 w-full bg-black text-sm font-medium uppercase tracking-wider text-white transition hover:bg-gold disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-black sm:flex-1"
           >
             {busy ? "Adding…" : "Add to cart"}
