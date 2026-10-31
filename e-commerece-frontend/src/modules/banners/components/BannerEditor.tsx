@@ -85,12 +85,12 @@ export function BannerEditor({
       }
     >
       <div className="space-y-5">
-        <Field label="Picture" required error={errors.image} hint="A wide picture works best.">
+        <Field label="Picture" required error={errors.image} hint="Homepage top banner: 2400 × 900 pixels (wide and short). Keep words away from the left and right edges.">
           <SingleImageField value={form.imageUrl} onChange={(url) => set("imageUrl", url)} alt={form.title} />
         </Field>
         <Field
           label="Phone picture (optional)"
-          hint="A taller picture for phones. If empty, the main picture is used."
+          hint="A taller picture for phones, 1080 × 1350 pixels. If empty, the main picture is used (its sides get cut off on phones)."
         >
           <SingleImageField
             value={form.mobileImageUrl}
