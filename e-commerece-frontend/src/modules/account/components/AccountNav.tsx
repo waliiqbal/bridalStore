@@ -40,7 +40,7 @@ export function AccountNav() {
   return (
     <nav
       aria-label="My account"
-      className="no-scrollbar -mx-4 flex gap-1 overflow-x-auto px-4 md:mx-0 md:flex-col md:px-0"
+      className="no-scrollbar -mx-4 flex gap-1 overflow-x-auto px-4 md:mx-0 md:flex-col md:px-0 print:hidden"
     >
       {LINKS.map(({ href, label, icon: Icon }) => {
         const active = pathname === href || pathname.startsWith(`${href}/`);

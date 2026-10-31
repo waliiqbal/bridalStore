@@ -27,7 +27,7 @@ export async function Footer() {
   ].filter((social): social is { label: string; href: string; icon: typeof FaInstagram } => !!social.href);
 
   return (
-    <footer className="mt-auto border-t border-line bg-cream">
+    <footer className="mt-auto border-t border-line bg-cream print:hidden">
       <div className="mx-auto grid max-w-[1600px] gap-10 px-4 py-12 sm:grid-cols-2 lg:grid-cols-[1.4fr_repeat(auto-fit,minmax(9rem,1fr))] lg:px-6">
         <div>
           <Logo size="lg" />

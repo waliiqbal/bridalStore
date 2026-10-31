@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { receiptShop } from "@/modules/account/components/Receipt";
 import { CheckoutSuccess } from "@/modules/checkout/components/CheckoutSuccess";
+import { getSettings } from "@/modules/shop/api/shop.api";
 
 export const metadata: Metadata = { title: "Order confirmation", robots: { index: false, follow: false } };
 
@@ -9,11 +11,12 @@ type Props = { searchParams: Promise<{ order?: string | string[] }> };
 export default async function Page({ searchParams }: Props) {
   const raw = (await searchParams).order;
   const orderNumber = (Array.isArray(raw) ? raw[0] : raw)?.trim();
+  const settings = await getSettings().catch(() => null);
 
   return (
     <div className="mx-auto w-full max-w-[1200px] px-4 pb-20 pt-8 lg:px-6">
       {orderNumber ? (
-        <CheckoutSuccess orderNumber={orderNumber} />
+        <CheckoutSuccess orderNumber={orderNumber} shop={receiptShop(settings)} />
       ) : (
         <p className="py-24 text-center text-muted">
           We couldn&apos;t find an order to show.{" "}

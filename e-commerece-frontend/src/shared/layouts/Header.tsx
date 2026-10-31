@@ -30,7 +30,7 @@ export async function Header({ currency }: { currency: string }) {
   const chat = whatsappLink(settings?.whatsappNumber);
 
   return (
-    <header className="sticky top-0 z-40 w-full bg-white">
+    <header className="sticky top-0 z-40 w-full bg-white print:hidden">
       {settings?.announcementBar && (
         <p className="bg-black px-4 py-2 text-center text-xs text-white sm:text-sm">
           {settings.announcementBar}

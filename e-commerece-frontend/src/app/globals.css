@@ -44,3 +44,9 @@ body {
 
 .no-scrollbar::-webkit-scrollbar { display: none; }
 .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+/* Receipts are the order page printed ("Save as PDF"). Elements that shouldn't print use `print:hidden`. */
+@media print {
+  @page { margin: 12mm; }
+  body { background: #fff; }
+}
