@@ -51,3 +51,9 @@ body {
 .art-focus { object-position: var(--focus-mobile, 50% 50%); }
 @media (min-width: 640px) { .art-focus-640 { object-position: var(--focus-desktop, 50% 50%); } }
 @media (min-width: 768px) { .art-focus-768 { object-position: var(--focus-desktop, 50% 50%); } }
+
+/* Receipts are the order page printed ("Save as PDF"). Elements that shouldn't print use `print:hidden`. */
+@media print {
+  @page { margin: 12mm; }
+  body { background: #fff; }
+}

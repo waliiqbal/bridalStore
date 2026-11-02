@@ -4,6 +4,8 @@ import { FormError } from "@/shared/components/FormError";
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { LuChevronDown } from "react-icons/lu";
+import { formatMoney } from "@/shared/lib/money";
 import { Button } from "@/shared/admin/Button";
 import { Field, Textarea } from "@/shared/admin/Form";
 import { LoadingRegion, Skeleton } from "@/shared/components/Skeletons";
@@ -44,7 +46,6 @@ export function CheckoutPage({ currency }: { currency: string }) {
   const { cart, ready, refresh: refreshBag } = useCart();
 
   const [email, setEmail] = useState("");
-  const [phone, setPhone] = useState("");
   const [address, setAddress] = useState<AddressInput>(EMPTY_ADDRESS);
   const [saved, setSaved] = useState<Address[]>([]);
   // A saved address's id, or NEW_ADDRESS
@@ -54,6 +55,8 @@ export function CheckoutPage({ currency }: { currency: string }) {
   const [priced, setPriced] = useState<CartView | null>(null);
   const [note, setNote] = useState("");
   const [marketing, setMarketing] = useState(false);
+  // Phones only: the order summary sits above the form, folded into one line until opened
+  const [summaryOpen, setSummaryOpen] = useState(false);
 
   const [errors, setErrors] = useState<FormErrors>(NO_ERRORS);
   const [problems, setProblems] = useState<CheckoutProblem[]>([]);
@@ -151,7 +154,6 @@ export function CheckoutPage({ currency }: { currency: string }) {
 
     const body: CheckoutInput = {
       ...(customer ? {} : { email: email.trim() }),
-      phone: phone.trim() || null,
       currency,
       shippingRateId: rateId ?? undefined,
       customerNote: note.trim() || null,
@@ -226,8 +228,6 @@ export function CheckoutPage({ currency }: { currency: string }) {
               setEmail(value);
               setErrors((current) => ({ ...current, email: undefined }));
             }}
-            phone={phone}
-            onPhone={setPhone}
             emailError={errors.email}
           />
           <DeliverySection
@@ -304,17 +304,36 @@ export function CheckoutPage({ currency }: { currency: string }) {
 
       <aside
         aria-labelledby="summary-heading"
-        className="h-fit space-y-5 rounded-sm border border-line bg-white p-5 lg:sticky lg:top-32"
+        className="order-first h-fit rounded-sm border border-line bg-white p-5 lg:sticky lg:top-32 lg:order-0"
       >
         <h2 id="summary-heading" className="font-serif text-xl font-bold">
-          Order summary
+          {/* On phones the heading is a button that opens the summary; the total is always visible */}
+          <button
+            type="button"
+            onClick={() => setSummaryOpen((open) => !open)}
+            aria-expanded={summaryOpen}
+            aria-controls="summary-body"
+            className="flex w-full items-center justify-between gap-3 text-left lg:hidden"
+          >
+            <span className="flex items-center gap-1.5">
+              Order summary
+              <LuChevronDown
+                aria-hidden
+                className={`h-5 w-5 transition-transform ${summaryOpen ? "rotate-180" : ""}`}
+              />
+            </span>
+            {view && <span className="font-sans text-base font-semibold">{formatMoney(view.totals.total)}</span>}
+          </button>
+          <span className="hidden lg:inline">Order summary</span>
         </h2>
-        {view && <CartLineList cart={view} editable={false} />}
-        {!placed && <CouponForm />}
-        {view && <CartSummary cart={view} />}
-        <Link href="/cart" className="block text-center text-sm underline underline-offset-4 hover:text-gold">
-          Edit your bag
-        </Link>
+        <div id="summary-body" className={`mt-5 space-y-5 ${summaryOpen ? "" : "hidden"} lg:block`}>
+          {view && <CartLineList cart={view} editable={false} />}
+          {!placed && <CouponForm />}
+          {view && <CartSummary cart={view} />}
+          <Link href="/cart" className="block text-center text-sm underline underline-offset-4 hover:text-gold">
+            Edit your bag
+          </Link>
+        </div>
       </aside>
     </div>
   );

@@ -5,6 +5,8 @@ import Link from "next/link";
 import { LuCircleCheck, LuClock, LuTriangleAlert } from "react-icons/lu";
 import { OrderDetailBody } from "@/modules/account/components/OrderDetailBody";
 import { OrderStatusBadge } from "@/modules/account/components/OrderStatusBadge";
+import { hasReceipt, ReceiptHeading, type ReceiptShop } from "@/modules/account/components/Receipt";
+import { ReceiptButton } from "@/modules/account/components/ReceiptButton";
 import { useShopper } from "@/modules/account/components/ShopperProvider";
 import { useCart } from "@/modules/cart/components/CartProvider";
 import { trackPurchase } from "@/modules/tracking/lib/track";
@@ -18,7 +20,7 @@ const MAX_TRIES = 8;
 // The page after paying. It never trusts the address or the browser: it asks the server, which
 // asks the payment provider, whether the order is really paid. If the bank is slow to answer it
 // keeps asking for a little while (the provider also tells the server directly).
-export function CheckoutSuccess({ orderNumber }: { orderNumber: string }) {
+export function CheckoutSuccess({ orderNumber, shop }: { orderNumber: string; shop: ReceiptShop }) {
   const { customer } = useShopper();
   const { refresh: refreshBag } = useCart();
   const [result, setResult] = useState<PaymentResult | null>(null);
@@ -91,9 +93,10 @@ export function CheckoutSuccess({ orderNumber }: { orderNumber: string }) {
 
   return (
     <div className="mx-auto max-w-3xl">
-      <header className="py-8 text-center">
+      <ReceiptHeading shop={shop} />
+      <header className="py-8 text-center print:py-0 print:text-left">
         {paid ? (
-          <LuCircleCheck className="mx-auto h-14 w-14 text-gold" aria-hidden />
+          <LuCircleCheck className="mx-auto h-14 w-14 text-gold print:hidden" aria-hidden />
         ) : waiting ? (
           <LuClock className="mx-auto h-14 w-14 text-amber-600" aria-hidden />
         ) : (
@@ -135,7 +138,8 @@ export function CheckoutSuccess({ orderNumber }: { orderNumber: string }) {
 
       <OrderDetailBody order={order} />
 
-      <div className="mt-10 flex flex-col items-center justify-center gap-3 sm:flex-row">
+      <div className="mt-10 flex flex-col items-center justify-center gap-3 sm:flex-row print:hidden">
+        {hasReceipt(order.status) && <ReceiptButton orderNumber={order.orderNumber} />}
         {customer && (
           <Link
             href="/account/orders"

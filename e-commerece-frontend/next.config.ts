@@ -16,9 +16,20 @@ const securityHeaders = [
   { key: "Strict-Transport-Security", value: "max-age=63072000; includeSubDomains" },
 ];
 
+// Temporary set-up for a site on *.vercel.app with the API on another domain: browsers can't keep
+// the API's sign-in and bag cookies there, so the API is reached through this site instead
+// (NEXT_PUBLIC_API_URL="/api", API_URL = the real API address). Not needed once the site and
+// the API share one domain (see docs/DEPLOY.md). Our own /api/revalidate route still wins.
+const apiProxyTarget = process.env.NEXT_PUBLIC_API_URL?.startsWith("/")
+  ? process.env.API_URL?.replace(/\/+$/, "")
+  : undefined;
+
 const nextConfig: NextConfig = {
   async headers() {
     return [{ source: "/:path*", headers: securityHeaders }];
+  },
+  async rewrites() {
+    return apiProxyTarget ? [{ source: "/api/:path*", destination: `${apiProxyTarget}/:path*` }] : [];
   },
   images: {
     // Uploaded product, category and banner pictures are served by Cloudinary

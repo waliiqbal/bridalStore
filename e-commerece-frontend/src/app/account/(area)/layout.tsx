@@ -13,14 +13,14 @@ export default async function AccountAreaLayout({ children }: { children: React.
   return (
     <div className="mx-auto w-full max-w-[1100px] px-4 pb-20 pt-8 lg:px-6">
       <SessionHint />
-      <header className="mb-6">
+      <header className="mb-6 print:hidden">
         <h1 className="font-serif text-3xl font-bold sm:text-4xl">My account</h1>
         <p className="mt-1 text-sm text-muted">
           {name ? `${name} · ` : ""}
           {customer.email}
         </p>
       </header>
-      <div className="grid gap-6 md:grid-cols-[13rem_1fr] md:gap-10">
+      <div className="grid gap-6 md:grid-cols-[13rem_1fr] md:gap-10 print:block">
         <AccountNav />
         <div className="min-w-0">{children}</div>
       </div>

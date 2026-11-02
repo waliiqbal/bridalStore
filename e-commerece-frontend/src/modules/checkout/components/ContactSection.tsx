@@ -4,19 +4,16 @@ import Link from "next/link";
 import { Field, Input } from "@/shared/admin/Form";
 
 // Step 1: how we reach the customer. A signed-in customer's account email is used; a guest types one.
+// The phone number is asked once, with the delivery address (the order uses the address's phone).
 export function ContactSection({
   signedInEmail,
   email,
   onEmail,
-  phone,
-  onPhone,
   emailError,
 }: {
   signedInEmail: string | null;
   email: string;
   onEmail: (value: string) => void;
-  phone: string;
-  onPhone: (value: string) => void;
   emailError?: string;
 }) {
   return (
@@ -55,21 +52,6 @@ export function ContactSection({
           </p>
         </>
       )}
-      <Field
-        label="Phone"
-        htmlFor="checkout-phone"
-        hint="Optional. For the courier if there is a problem delivering."
-      >
-        <Input
-          id="checkout-phone"
-          type="tel"
-          inputMode="tel"
-          autoComplete="tel"
-          maxLength={24}
-          value={phone}
-          onChange={(event) => onPhone(event.target.value)}
-        />
-      </Field>
     </fieldset>
   );
 }

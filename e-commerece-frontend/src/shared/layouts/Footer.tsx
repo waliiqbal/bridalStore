@@ -104,7 +104,7 @@ export async function Footer() {
   const paymentIcons = (settings?.footerPaymentIcons ?? []).filter((name) => name in PAYMENT_ICONS);
 
   return (
-    <footer className="mt-auto bg-cream">
+    <footer className="mt-auto bg-cream print:hidden">
       {promises.length > 0 && (
         <div className="border-y border-line bg-white">
           <ul className="mx-auto grid max-w-[1600px] gap-6 px-4 py-7 sm:grid-cols-3 lg:px-6">
