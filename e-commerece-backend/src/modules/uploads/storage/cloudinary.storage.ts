@@ -23,7 +23,7 @@ export class CloudinaryStorage implements StorageService {
       const stream = cloudinary.uploader.upload_stream(
         {
           public_id: publicId,
-          resource_type: 'image',
+          resource_type: key.startsWith('videos/') ? 'video' : 'image',
           // Keys are unique per upload, so never replace an existing file
           overwrite: false,
           use_filename: false,

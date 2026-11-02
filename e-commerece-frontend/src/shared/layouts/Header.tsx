@@ -13,6 +13,7 @@ import { MegaMenu } from "./MegaMenu";
 import { MobileAccountLink } from "./MobileAccountLink";
 import { MobileMenu } from "./MobileMenu";
 import { SearchButton } from "./SearchButton";
+import { TOP_LINKS } from "./top-links";
 import { WishlistLink } from "./WishlistLink";
 import { whatsappLink } from "./whatsapp";
 
@@ -40,11 +41,31 @@ export async function Header({ currency }: { currency: string }) {
       <div className="relative border-b border-line">
         {/* Logo always centred. Left: menu button (phones). Right: search bar (wide screens) and icons */}
         <div className="mx-auto grid max-w-[1600px] grid-cols-[1fr_auto_1fr] items-center gap-2 px-3 py-3 sm:gap-3 sm:px-4 lg:gap-8 lg:px-6 lg:py-4">
-          <div className="flex items-center">
+          <div className="flex min-w-0 items-center">
+            {/* One row on laptops and bigger. Smaller screens get these links inside the menu button. */}
+            <nav
+              aria-label="Information"
+              className="hidden flex-nowrap items-center gap-x-5 whitespace-nowrap min-[1240px]:flex min-[1240px]:pl-2 min-[1440px]:gap-x-7 2xl:gap-x-9"
+            >
+              {TOP_LINKS.map((link) => (
+                <Link
+                  key={link.href}
+                  href={link.href}
+                  className="font-condensed text-[15px] font-medium uppercase hover:text-gold 2xl:text-[17px]"
+                >
+                  {link.label}
+                </Link>
+              ))}
+            </nav>
             <MobileMenu
               items={items}
               footer={
                 <div className="space-y-4">
+                  {TOP_LINKS.map((link) => (
+                    <Link key={link.href} href={link.href} className="block text-[15px] hover:text-gold">
+                      {link.label}
+                    </Link>
+                  ))}
                   <MobileAccountLink />
                   <Link href="/wishlist" className="flex items-center gap-2 text-[15px] hover:text-gold">
                     <LuHeart className="h-5 w-5" />

@@ -30,8 +30,17 @@ const ITEM_SELECT = {
   collectionId: true,
   categoryId: true,
   pageId: true,
-  collection: { select: { slug: true, title: true, isPublished: true } },
-  category: { select: { slug: true, name: true, isVisible: true } },
+  collection: {
+    select: {
+      slug: true,
+      title: true,
+      isPublished: true,
+      tileImageUrl: true,
+      mobileBannerImageUrl: true,
+      bannerImageUrl: true,
+    },
+  },
+  category: { select: { slug: true, name: true, isVisible: true, tileImageUrl: true, imageUrl: true } },
   page: { select: { slug: true, title: true, isPublished: true } },
 } satisfies Prisma.MenuItemSelect;
 

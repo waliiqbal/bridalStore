@@ -6,6 +6,7 @@ import { ListingPage } from "@/modules/shop/components/ListingPage";
 import { listingMetadata } from "@/modules/shop/lib/listing-metadata";
 import { parseListingQuery, type RawParams } from "@/modules/shop/lib/listing-query";
 import { plainText } from "@/modules/shop/lib/seo";
+import { imageSrc } from "@/shared/lib/image-focus";
 
 type Props = { params: Promise<{ currency: string; slug: string }>; searchParams: Promise<RawParams> };
 
@@ -33,7 +34,7 @@ export async function generateMetadata({ params, searchParams }: Props): Promise
   return listingMetadata({
     title: category.seoTitle || category.name,
     description: category.seoDescription || plainText(category.description) || undefined,
-    image: category.imageUrl ?? data.products.items[0]?.images[0]?.url,
+    image: imageSrc(category.imageUrl) ?? data.products.items[0]?.images[0]?.url,
     basePath: `/categories/${slug}`,
     query,
   });

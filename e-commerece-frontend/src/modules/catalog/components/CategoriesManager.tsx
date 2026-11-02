@@ -4,6 +4,7 @@ import { useState } from "react";
 import Image from "next/image";
 import { LuChevronRight, LuFolderPlus, LuPencil, LuPlus, LuTrash2 } from "react-icons/lu";
 import { SingleImageField } from "@/modules/uploads/components/SingleImageField";
+import { IMAGE_PRESETS } from "@/modules/uploads/lib/image-presets";
 import { Button } from "@/shared/admin/Button";
 import { useAdminUi } from "@/shared/admin/AdminUiProvider";
 import { Field, Input, Toggle } from "@/shared/admin/Form";
@@ -453,16 +454,22 @@ function CategoryFormBody({
 
       <div className="grid gap-5 sm:grid-cols-2">
         <Field label="Banner picture (optional)" hint="A wide picture shown at the top of this category's page.">
-          <SingleImageField value={form.imageUrl} onChange={(url) => set("imageUrl", url)} alt={form.name} />
+          <SingleImageField
+            value={form.imageUrl}
+            onChange={(url) => set("imageUrl", url)}
+            alt={form.name}
+            preset={IMAGE_PRESETS.pageBanner}
+          />
         </Field>
         <Field
           label="Homepage tile picture (optional)"
-          hint="A tall picture, 1200 × 1500 px, shown when this category appears as a tile on the homepage. If empty, the banner is used."
+          hint="Shown when this category appears as a tile on the homepage. If empty, the banner is used."
         >
           <SingleImageField
             value={form.tileImageUrl}
             onChange={(url) => set("tileImageUrl", url)}
             alt={form.name}
+            preset={IMAGE_PRESETS.tile}
           />
         </Field>
       </div>

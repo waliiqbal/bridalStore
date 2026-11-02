@@ -60,7 +60,13 @@ const NEXT_STEPS: Record<EnquiryStatus, { to: EnquiryStatus; label: string; prim
 };
 
 const sourceLabel = (source: string) =>
-  source === "window" ? "Shop window QR code" : source === "website" ? "Website" : `QR: ${source}`;
+  source === "window"
+    ? "Shop window QR code"
+    : source === "website"
+      ? "Website"
+      : source === "appointment"
+        ? "Book an appointment"
+        : `QR: ${source}`;
 
 const DAY_MS = 86_400_000;
 

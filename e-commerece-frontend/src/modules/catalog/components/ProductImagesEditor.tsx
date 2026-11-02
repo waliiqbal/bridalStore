@@ -3,6 +3,7 @@
 import Image from "next/image";
 import { LuTrash2 } from "react-icons/lu";
 import { ImageDropzone } from "@/modules/uploads/components/ImageDropzone";
+import { IMAGE_PRESETS } from "@/modules/uploads/lib/image-presets";
 import { ReorderList } from "@/shared/admin/ReorderList";
 
 export interface ImageDraft {
@@ -96,6 +97,7 @@ export function ProductImagesEditor({
       <ImageDropzone
         compact={images.length > 0}
         label={images.length > 0 ? "Add more photos" : "Drag photos here, or click to choose"}
+        hint={`Best size: ${IMAGE_PRESETS.product.size}`}
         onUploaded={(uploaded) => {
           const known = new Set(images.map((image) => image.url));
           const added = uploaded

@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { assertNoNulls, definedOnly } from '../../../common/validation.js';
-import type { Prisma } from '../../../generated/prisma/client.js';
+import { Prisma } from '../../../generated/prisma/client.js';
 import { PrismaService } from '../../../prisma/prisma.service.js';
 import { CacheTags, RevalidationService } from '../../revalidation/revalidation.service.js';
 import type { UpdateSettingsDto } from './dto/settings.dto.js';
@@ -19,6 +19,8 @@ const PUBLIC_SELECT = {
   tiktokUrl: true,
   metaPixelId: true,
   googleAnalyticsId: true,
+  footerPromises: true,
+  footerPaymentIcons: true,
 } satisfies Prisma.StoreSettingsSelect;
 
 @Injectable()
@@ -53,11 +55,22 @@ export class SettingsService {
       'sendOrderEmails',
       'sendShippingEmails',
       'autoApproveReviews',
+      'footerPaymentIcons',
     ]);
     await this.ensure();
+    const { footerPromises, ...rest } = definedOnly(dto);
     const settings = await this.prisma.storeSettings.update({
       where: { id: SETTINGS_ID },
-      data: definedOnly(dto),
+      data: {
+        ...rest,
+        // null = back to the built-in wording; a list (even an empty one) is stored as given
+        ...(footerPromises !== undefined && {
+          footerPromises:
+            footerPromises === null
+              ? Prisma.JsonNull
+              : footerPromises.map(({ title, text }) => ({ title, text })),
+        }),
+      },
     });
     void this.revalidation.notify([CacheTags.settings]);
     return settings;

@@ -4,6 +4,7 @@ import { useState } from "react";
 import { LinkField } from "@/modules/pages/components/LinkField";
 import type { LinkGroup } from "@/modules/pages/lib/link-options";
 import { SingleImageField } from "@/modules/uploads/components/SingleImageField";
+import { IMAGE_PRESETS } from "@/modules/uploads/lib/image-presets";
 import { Button } from "@/shared/admin/Button";
 import { useAdminUi } from "@/shared/admin/AdminUiProvider";
 import { Field, Input, Select, Toggle } from "@/shared/admin/Form";
@@ -85,17 +86,23 @@ export function BannerEditor({
       }
     >
       <div className="space-y-5">
-        <Field label="Picture" required error={errors.image} hint="Homepage top banner: 2400 × 900 pixels (wide and short). Keep words away from the left and right edges.">
-          <SingleImageField value={form.imageUrl} onChange={(url) => set("imageUrl", url)} alt={form.title} />
+        <Field label="Picture" required error={errors.image}>
+          <SingleImageField
+            value={form.imageUrl}
+            onChange={(url) => set("imageUrl", url)}
+            alt={form.title}
+            preset={IMAGE_PRESETS.homeBanner}
+          />
         </Field>
         <Field
           label="Phone picture (optional)"
-          hint="A taller picture for phones, 1080 × 1350 pixels. If empty, the main picture is used (its sides get cut off on phones)."
+          hint="If empty, the main picture is used on phones too (its sides get cut off)."
         >
           <SingleImageField
             value={form.mobileImageUrl}
             onChange={(url) => set("mobileImageUrl", url)}
             alt={form.title}
+            preset={IMAGE_PRESETS.homeBannerPhone}
           />
         </Field>
 

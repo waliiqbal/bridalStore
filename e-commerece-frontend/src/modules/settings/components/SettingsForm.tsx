@@ -10,14 +10,20 @@ import {
   ANNOUNCEMENT_MAX,
   EMAIL_NOTE_MAX,
   toFlags,
+  toFooterInput,
+  toFooterState,
   toFormState,
   toSettingsInput,
+  validateFooter,
   validateSettings,
+  type FooterFormErrors,
+  type FooterFormState,
   type SettingsFlags,
   type SettingsFormErrors,
   type SettingsFormState,
 } from "../lib/settings-form";
 import type { AdminSettings } from "../types/settings";
+import { FooterSettingsCard } from "./FooterSettingsCard";
 
 export function SettingsForm({ settings, onSaved }: { settings: AdminSettings; onSaved: () => void }) {
   const ui = useAdminUi();
@@ -31,9 +37,14 @@ export function SettingsForm({ settings, onSaved }: { settings: AdminSettings; o
   const setFlag = (key: keyof SettingsFlags) => (value: boolean) =>
     setFlags((current) => ({ ...current, [key]: value }));
 
+  const [initialFooter] = useState(() => toFooterState(settings));
+  const [footer, setFooter] = useState<FooterFormState>(initialFooter);
+  const [footerErrors, setFooterErrors] = useState<FooterFormErrors>({});
+
   const dirty =
     JSON.stringify(form) !== JSON.stringify(initial) ||
-    JSON.stringify(flags) !== JSON.stringify(initialFlags);
+    JSON.stringify(flags) !== JSON.stringify(initialFlags) ||
+    JSON.stringify(footer) !== JSON.stringify(initialFooter);
   const set = <K extends keyof SettingsFormState>(key: K, value: string) => {
     setForm((current) => ({ ...current, [key]: value }));
     setErrors((current) => ({ ...current, [key]: undefined }));
@@ -42,13 +53,15 @@ export function SettingsForm({ settings, onSaved }: { settings: AdminSettings; o
   async function save() {
     const found = validateSettings(form);
     setErrors(found);
-    if (Object.values(found).some(Boolean)) {
+    const footerFound = validateFooter(footer);
+    setFooterErrors(footerFound);
+    if (Object.values(found).some(Boolean) || Object.values(footerFound).some(Boolean)) {
       ui.error(new Error("Please fix the highlighted fields."));
       return;
     }
     setSaving(true);
     try {
-      await updateSettings({ ...toSettingsInput(form), ...flags });
+      await updateSettings({ ...toSettingsInput(form), ...flags, ...toFooterInput(footer) });
       ui.success("Settings saved.");
       onSaved();
     } catch (error) {
@@ -144,6 +157,15 @@ export function SettingsForm({ settings, onSaved }: { settings: AdminSettings; o
           {text("tiktokUrl", "TikTok link", { placeholder: "https://tiktok.com/@yourstudio" })}
         </div>
       </Card>
+
+      <FooterSettingsCard
+        footer={footer}
+        errors={footerErrors}
+        onChange={(next) => {
+          setFooter(next);
+          setFooterErrors({});
+        }}
+      />
 
       <Card
         title="GST"

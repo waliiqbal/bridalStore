@@ -6,9 +6,10 @@ import type { CategoryNode } from "@/modules/catalog/types/catalog";
 import type { CollectionListItem } from "@/modules/collections/types/collections";
 import type { PageListItem } from "@/modules/pages/types/pages";
 import { SingleImageField } from "@/modules/uploads/components/SingleImageField";
+import { IMAGE_PRESETS } from "@/modules/uploads/lib/image-presets";
 import { Button } from "@/shared/admin/Button";
 import { useAdminUi } from "@/shared/admin/AdminUiProvider";
-import { Field, Input, Select } from "@/shared/admin/Form";
+import { Field, Input, Select, Textarea } from "@/shared/admin/Form";
 import { Notice } from "@/shared/admin/Layout";
 import { Modal } from "@/shared/admin/Modal";
 import { createMenuItem, updateMenuItem } from "../api/menus.api";
@@ -108,18 +109,38 @@ export function MenuItemEditor({
       }
     >
       <div className="space-y-5">
-        <Field label="Words customers read" htmlFor="m-label" required error={errors.label}>
-          <Input
-            id="m-label"
-            value={form.label}
-            maxLength={80}
-            autoFocus
-            placeholder="e.g. Lehenga"
-            onChange={(event) => {
-              set("label", event.target.value);
-              setErrors((current) => ({ ...current, label: undefined }));
-            }}
-          />
+        <Field
+          label={form.type === "TEXT" ? "The words" : "Words customers read"}
+          htmlFor="m-label"
+          required
+          error={errors.label}
+        >
+          {form.type === "TEXT" ? (
+            <Textarea
+              id="m-label"
+              value={form.label}
+              maxLength={300}
+              rows={3}
+              autoFocus
+              placeholder="e.g. Planning a celebration? Tell us about your event."
+              onChange={(event) => {
+                set("label", event.target.value);
+                setErrors((current) => ({ ...current, label: undefined }));
+              }}
+            />
+          ) : (
+            <Input
+              id="m-label"
+              value={form.label}
+              maxLength={300}
+              autoFocus
+              placeholder="e.g. Lehenga"
+              onChange={(event) => {
+                set("label", event.target.value);
+                setErrors((current) => ({ ...current, label: undefined }));
+              }}
+            />
+          )}
         </Field>
 
         <Field label="What does it open?" htmlFor="m-type" hint={typeHint}>
@@ -195,7 +216,16 @@ export function MenuItemEditor({
           <Notice>
             A group title doesn&apos;t open anything. Put links <strong>inside</strong> it using “Add inside”
             on its row, and they appear under this title in the big menu. A title with nothing inside is
-            hidden.
+            hidden. In the <strong>Footer menu</strong>, each group title is one column of the footer, and a
+            picture on it (like your logo) is shown instead of the title words.
+          </Notice>
+        )}
+        {form.type === "TEXT" && (
+          <Notice>
+            Plain words with no link. Put it <strong>inside</strong> a footer column using “Add inside”. For an
+            email, a phone number or WhatsApp, use “A web address” instead: <strong>mailto:you@shop.com</strong>,{" "}
+            <strong>tel:+61400000000</strong> or <strong>https://wa.me/61400000000</strong>. They get their own
+            little icon in the footer.
           </Notice>
         )}
 
@@ -234,9 +264,14 @@ export function MenuItemEditor({
 
         <Field
           label="Picture (optional)"
-          hint="Shown as a small picture tile in the big menu, if you want one."
+          hint="In the big menu this is a small picture tile. On a footer column (a group title) it is shown instead of the title words, which is how the logo is shown."
         >
-          <SingleImageField value={form.imageUrl} onChange={(url) => set("imageUrl", url)} alt={form.label} />
+          <SingleImageField
+            value={form.imageUrl}
+            onChange={(url) => set("imageUrl", url)}
+            alt={form.label}
+            preset={handle === "footer" ? IMAGE_PRESETS.footerLogo : IMAGE_PRESETS.menuTile}
+          />
         </Field>
       </div>
     </Modal>

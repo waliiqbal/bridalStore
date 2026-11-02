@@ -37,13 +37,13 @@ export function MobileMenu({ items, footer }: { items: PublicMenuItem[]; footer?
         type="button"
         onClick={() => setOpen(true)}
         aria-label="Open menu"
-        className="flex h-10 w-10 items-center justify-center lg:hidden"
+        className="flex h-10 w-10 items-center justify-center min-[1240px]:hidden"
       >
         <LuMenu className="h-6 w-6" />
       </button>
 
       {open && (
-        <div className="fixed inset-0 z-50 lg:hidden">
+        <div className="fixed inset-0 z-50 min-[1240px]:hidden">
           <button
             type="button"
             aria-label="Close menu"

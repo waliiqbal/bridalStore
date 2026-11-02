@@ -13,11 +13,15 @@ import {
   MaxLength,
   Min,
   MinLength,
+  ValidateNested,
 } from 'class-validator';
+import { Type } from 'class-transformer';
 import { SanitizeHtml } from '../../../../common/html/sanitize-html.js';
 import { IsImageUrl, IsSafeLink } from '../../../../common/validation.js';
 import { PageSectionType } from '../../../../generated/prisma/enums.js';
-import { MAX_PRODUCT_LIMIT, MAX_TILES } from '../section-validation.js';
+import { MAX_PRODUCT_LIMIT, MAX_TILES, PROMO_BANNERS_MAX, SHOWCASE_MAX } from '../section-validation.js';
+import { SectionBannerDto } from './section-banner.dto.js';
+import { SectionVideoDto } from './section-video.dto.js';
 
 export class CreatePageDto {
   @IsString()
@@ -117,6 +121,22 @@ export class CreateSectionDto {
   productLimit?: number;
 
   // Extra layout options (colours, alignment) without new columns
+  // VIDEO_BANNER / VIDEO_SHOWCASE: the block's videos, in order. The list replaces the block's current videos.
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(SHOWCASE_MAX)
+  @ValidateNested({ each: true })
+  @Type(() => SectionVideoDto)
+  videos?: SectionVideoDto[];
+
+  // PROMO_BANNERS: the block's banners, in order. The list replaces the block's current banners.
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(PROMO_BANNERS_MAX)
+  @ValidateNested({ each: true })
+  @Type(() => SectionBannerDto)
+  banners?: SectionBannerDto[];
+
   @IsOptional()
   @IsObject()
   settings?: Record<string, unknown> | null;

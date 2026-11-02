@@ -1,23 +1,25 @@
-import Image from "next/image";
+import { ArtDirectedImage } from "@/shared/components/ArtDirectedImage";
 import { MenuLink } from "@/shared/layouts/MenuLink";
-import type { PublicBanner } from "../../types/page";
+import type { PublicPromoBanner } from "../../types/page";
 
-// Promotion banners from the admin's Banners screen (placement "Homepage: promo banners").
-// Side by side on larger screens, stacked on phones.
-export function PromoBanners({ banners }: { banners: PublicBanner[] }) {
+// The "Side-by-side banners" block: promotion banners the owner chose for this block.
+// Side by side on larger screens (two per row), stacked on phones. A single banner is full width.
+export function PromoBanners({ banners }: { banners: PublicPromoBanner[] }) {
   if (banners.length === 0) return null;
+  const single = banners.length === 1;
 
   return (
     <section aria-label="Promotions" className="mx-auto w-full max-w-[1600px] px-4 lg:px-6">
-      <ul className={`grid gap-3 sm:gap-5 ${banners.length > 1 ? "md:grid-cols-2" : ""}`}>
+      <ul className={`grid gap-3 sm:gap-5 ${single ? "" : "md:grid-cols-2"}`}>
         {banners.map((banner) => {
           const body = (
             <>
-              <Image
-                src={banner.imageUrl}
+              <ArtDirectedImage
+                desktopSrc={banner.imageUrl}
+                mobileSrc={banner.mobileImageUrl}
                 alt={banner.title ?? ""}
-                fill
-                sizes={banners.length > 1 ? "(min-width: 768px) 50vw, 100vw" : "100vw"}
+                sizes={single ? "100vw" : "(min-width: 768px) 50vw, 100vw"}
+                breakpoint={640}
                 className="object-cover transition duration-700 group-hover:scale-105"
               />
               <span aria-hidden className="absolute inset-0 bg-gradient-to-r from-black/55 via-black/15 to-transparent" />
@@ -32,7 +34,9 @@ export function PromoBanners({ banners }: { banners: PublicBanner[] }) {
               </span>
             </>
           );
-          const frame = "group relative block aspect-[16/9] overflow-hidden bg-cream sm:aspect-[2/1]";
+          const frame = `group relative block aspect-[16/9] overflow-hidden bg-cream ${
+            single ? "sm:aspect-[2/1] lg:aspect-[8/3]" : "sm:aspect-[2/1]"
+          }`;
           return (
             <li key={banner.id}>
               {banner.linkUrl ? (

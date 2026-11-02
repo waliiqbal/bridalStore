@@ -1,4 +1,5 @@
 import Image from "next/image";
+import { focusStyle, imageSrc } from "@/shared/lib/image-focus";
 import Link from "next/link";
 import type { PublicSection } from "../../types/page";
 import { ProductScroller } from "./ProductScroller";
@@ -24,10 +25,11 @@ export function TilesBlock({ section }: { section: PublicSection }) {
               <Link href={`/${tile.kind === "category" ? "categories" : "collections"}/${tile.slug}`} className="group relative block aspect-[4/5] overflow-hidden bg-cream">
                 {picture && (
                   <Image
-                    src={picture}
+                    src={imageSrc(picture)}
                     alt=""
                     fill
                     sizes="(min-width: 1024px) 25vw, 50vw"
+                    style={focusStyle(picture)}
                     className="object-cover transition duration-700 group-hover:scale-105"
                   />
                 )}

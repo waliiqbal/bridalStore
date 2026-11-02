@@ -16,7 +16,10 @@ export type SectionType =
   | "COLLECTION_GRID"
   | "IMAGE_WITH_TEXT"
   | "RICH_TEXT"
-  | "FAQ";
+  | "FAQ"
+  | "VIDEO_SHOWCASE"
+  | "VIDEO_BANNER"
+  | "PROMO_BANNERS";
 
 export interface PublicSection {
   id: string;
@@ -31,6 +34,10 @@ export interface PublicSection {
   settings: Record<string, unknown> | null;
   // FAQ block
   faqs?: PublicFaq[];
+  // Banner video / Trending videos blocks
+  videos?: PublicVideo[];
+  // Side-by-side banners block
+  banners?: PublicPromoBanner[];
   // Product slider / grid
   collection?: { title: string; slug: string };
   products?: ProductCardData[];
@@ -56,7 +63,20 @@ export interface PublicPage {
   sections: PublicSection[];
 }
 
-// A promotional banner from the admin's Banners screen
+// A video of a Banner video or Trending videos block
+export interface PublicVideo {
+  id: string;
+  title: string | null;
+  videoUrl: string;
+  posterUrl: string | null;
+  // A page the video opens when clicked
+  linkUrl: string | null;
+}
+
+// A banner inside a "Side-by-side banners" block
+export type PublicPromoBanner = Omit<PublicBanner, "placement">;
+
+// A big banner from the admin's Banners screen
 export interface PublicBanner {
   id: string;
   title: string | null;

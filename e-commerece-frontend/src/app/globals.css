@@ -18,6 +18,7 @@
   --color-gold: var(--gold);
   --font-sans: var(--font-geist-sans);
   --font-serif: var(--font-playfair);
+  --font-condensed: var(--font-barlow-condensed);
 }
 
 body {
@@ -44,3 +45,9 @@ body {
 
 .no-scrollbar::-webkit-scrollbar { display: none; }
 .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+/* A picture with a saved "which part to show" for phones and for larger screens (ArtDirectedImage).
+   The two positions come in as --focus-mobile and --focus-desktop. */
+.art-focus { object-position: var(--focus-mobile, 50% 50%); }
+@media (min-width: 640px) { .art-focus-640 { object-position: var(--focus-desktop, 50% 50%); } }
+@media (min-width: 768px) { .art-focus-768 { object-position: var(--focus-desktop, 50% 50%); } }

@@ -13,6 +13,8 @@ import { CurrencyService } from '../../pricing/currency.service.js';
 import {
   isProductSection,
   MAX_PRODUCT_SECTIONS_PER_PAGE,
+  PROMO_BANNERS_MAX,
+  SHOWCASE_MAX,
 } from './section-validation.js';
 
 const PUBLIC_PAGE_SELECT = {
@@ -38,6 +40,28 @@ const PUBLIC_PAGE_SELECT = {
       collectionIds: true,
       productLimit: true,
       settings: true,
+      // The banners of a "Side-by-side banners" block (switched-on ones, in the owner's order)
+      banners: {
+        where: { isActive: true },
+        select: {
+          id: true,
+          title: true,
+          subtitle: true,
+          imageUrl: true,
+          mobileImageUrl: true,
+          linkUrl: true,
+          buttonText: true,
+        },
+        orderBy: [{ sortOrder: 'asc' }, { id: 'asc' }],
+        take: PROMO_BANNERS_MAX,
+      },
+      // The videos of a video block (switched-on ones, in the owner's order); no extra query
+      videos: {
+        where: { isActive: true },
+        select: { id: true, title: true, videoUrl: true, posterUrl: true, linkUrl: true },
+        orderBy: [{ sortOrder: 'asc' }, { id: 'asc' }],
+        take: SHOWCASE_MAX,
+      },
     },
     orderBy: [{ sortOrder: 'asc' }, { id: 'asc' }],
   },
@@ -91,6 +115,22 @@ export type PublicSection = SectionBase &
         collections: SectionTile[];
       }
     | { type: 'FAQ'; faqs: { id: string; question: string; answer: string }[] }
+    | {
+        type: 'VIDEO_SHOWCASE' | 'VIDEO_BANNER';
+        videos: { id: string; title: string | null; videoUrl: string; posterUrl: string | null; linkUrl: string | null }[];
+      }
+    | {
+        type: 'PROMO_BANNERS';
+        banners: {
+          id: string;
+          title: string | null;
+          subtitle: string | null;
+          imageUrl: string;
+          mobileImageUrl: string | null;
+          linkUrl: string | null;
+          buttonText: string | null;
+        }[];
+      }
     | { type: 'RICH_TEXT'; body: string | null }
     | {
         type: 'HERO_BANNER' | 'IMAGE_WITH_TEXT';
@@ -235,6 +275,12 @@ export class PagesService {
         }
         case 'FAQ':
           return [{ ...base, type: section.type, faqs }];
+        case 'VIDEO_SHOWCASE':
+        case 'VIDEO_BANNER':
+          // A block with no switched-on video is not shown
+          return section.videos.length ? [{ ...base, type: section.type, videos: section.videos }] : [];
+        case 'PROMO_BANNERS':
+          return section.banners.length ? [{ ...base, type: section.type, banners: section.banners }] : [];
         case 'RICH_TEXT':
           return [{ ...base, type: section.type, body: section.body }];
         case 'HERO_BANNER':

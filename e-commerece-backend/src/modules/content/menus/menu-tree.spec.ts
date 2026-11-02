@@ -1,5 +1,6 @@
 import {
   buildPublicMenu,
+  menuImage,
   menuHref,
   normalizeMenuTarget,
   validateMenuTarget,
@@ -79,5 +80,63 @@ describe('validateMenuTarget', () => {
       pageId: 'p',
       url: null,
     });
+  });
+});
+
+describe('menuImage', () => {
+  it("uses the item's own picture first", () => {
+    const row = item({
+      id: 'a',
+      type: 'CATEGORY',
+      imageUrl: 'own.webp',
+      category: { slug: 'x', isVisible: true, tileImageUrl: 'tile.webp', imageUrl: 'banner.webp' },
+    });
+    expect(menuImage(row)).toBe('own.webp');
+  });
+
+  it("falls back to the category's tile picture, then its banner", () => {
+    const withTile = item({
+      id: 'a',
+      type: 'CATEGORY',
+      category: { slug: 'x', isVisible: true, tileImageUrl: 'tile.webp', imageUrl: 'banner.webp' },
+    });
+    const bannerOnly = item({
+      id: 'b',
+      type: 'CATEGORY',
+      category: { slug: 'x', isVisible: true, tileImageUrl: null, imageUrl: 'banner.webp' },
+    });
+    expect(menuImage(withTile)).toBe('tile.webp');
+    expect(menuImage(bannerOnly)).toBe('banner.webp');
+  });
+
+  it("falls back through a collection's tile, phone banner and banner", () => {
+    const collection = (extra: object) =>
+      item({ id: 'c', type: 'COLLECTION', collection: { slug: 'x', isPublished: true, ...extra } });
+    expect(menuImage(collection({ tileImageUrl: 't', mobileBannerImageUrl: 'm', bannerImageUrl: 'b' }))).toBe('t');
+    expect(menuImage(collection({ mobileBannerImageUrl: 'm', bannerImageUrl: 'b' }))).toBe('m');
+    expect(menuImage(collection({ bannerImageUrl: 'b' }))).toBe('b');
+  });
+
+  it('has no picture for headings, pages and links, and the public menu uses it', () => {
+    expect(menuImage(item({ id: 'h', type: 'HEADING' }))).toBeNull();
+    expect(menuImage(item({ id: 'u', type: 'URL', url: '/x' }))).toBeNull();
+    const menu = buildPublicMenu([
+      item({ id: 'k', type: 'CATEGORY', category: { slug: 'k', isVisible: true, tileImageUrl: 'k.webp' } }),
+    ]);
+    expect(menu[0].imageUrl).toBe('k.webp');
+  });
+});
+
+describe('TEXT items (plain words, used in footer columns)', () => {
+  it('have no link, are always shown and cannot be given a target', () => {
+    const text = item({ id: 't', type: 'TEXT', label: 'Planning a celebration?' });
+    expect(menuHref(text)).toBeNull();
+    expect(validateMenuTarget({ type: 'TEXT' })).toBeNull();
+    expect(validateMenuTarget({ type: 'TEXT', url: '/x' })).toMatch(/cannot link/);
+    const menu = buildPublicMenu([
+      item({ id: 'col', type: 'HEADING' }),
+      item({ id: 't', type: 'TEXT', parentId: 'col', label: 'Hello' }),
+    ]);
+    expect(menu[0].children).toMatchObject([{ id: 't', type: 'TEXT', label: 'Hello', href: null }]);
   });
 });

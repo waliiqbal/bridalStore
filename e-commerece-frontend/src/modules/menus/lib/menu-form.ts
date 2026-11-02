@@ -8,7 +8,12 @@ export const MENU_TYPES: { type: MenuItemType; label: string; hint: string }[] =
   {
     type: "HEADING",
     label: "A group title (no link)",
-    hint: "A title that organises the links under it in the big menu, like “Style” or “Occasion”.",
+    hint: "A title that organises the links under it in the big menu, like “Style” or “Occasion”. In the Footer menu, each group title is one column of the footer.",
+  },
+  {
+    type: "TEXT",
+    label: "Plain words (no link)",
+    hint: "Just some words, like a short line in a footer column. Put it inside a group title.",
   },
 ];
 
@@ -20,6 +25,7 @@ export const HIGHLIGHTS: { value: string; label: string }[] = [
   { value: "red", label: "Red (stands out, good for Sale)" },
   { value: "gold", label: "Gold" },
   { value: "dark", label: "Black label" },
+  { value: "button", label: "Button (in the footer: a black button)" },
 ];
 
 export interface MenuItemFormState {

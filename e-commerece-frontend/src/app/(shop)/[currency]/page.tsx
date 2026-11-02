@@ -6,9 +6,9 @@ import { resolveCurrency } from "@/modules/currency/server";
 import { getBanners, getPage } from "@/modules/shop/api/page.api";
 import { getCategoryTree, getSettings } from "@/modules/shop/api/shop.api";
 import { HeroSlider } from "@/modules/shop/components/blocks/HeroSlider";
-import { PromoBanners } from "@/modules/shop/components/blocks/PromoBanners";
 import { SectionRenderer } from "@/modules/shop/components/blocks/SectionRenderer";
 import { plainText } from "@/modules/shop/lib/seo";
+import { focusStyle, imageSrc } from "@/shared/lib/image-focus";
 
 type Props = { params: Promise<{ currency: string }> };
 
@@ -28,10 +28,9 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 // promotion banners appear after the first row of picture tiles.
 export default async function HomePage({ params }: Props) {
   const { code } = await resolveCurrency((await params).currency);
-  const [page, heroBanners, promoBanners] = await Promise.all([
+  const [page, heroBanners] = await Promise.all([
     getPage("home", code).catch(() => null),
     getBanners("home_hero").catch(() => []),
-    getBanners("home_promo").catch(() => []),
   ]);
 
   const sections = page?.sections ?? [];
@@ -40,8 +39,6 @@ export default async function HomePage({ params }: Props) {
   const blocks = hasSlides ? sections.filter((section) => section.type !== "HERO_BANNER") : sections;
 
   if (!hasSlides && blocks.length === 0) return <FallbackHome />;
-
-  const promoAfter = blocks.findIndex((section) => section.type === "COLLECTION_TILES");
 
   return (
     <div className="pb-16">
@@ -60,13 +57,9 @@ export default async function HomePage({ params }: Props) {
         />
       )}
       <div className="mt-10 space-y-14 sm:mt-14 sm:space-y-20">
-        {blocks.map((section, index) => (
-          <div key={section.id} className="space-y-14 sm:space-y-20">
-            <SectionRenderer section={section} />
-            {index === promoAfter && <PromoBanners banners={promoBanners} />}
-          </div>
+        {blocks.map((section) => (
+          <SectionRenderer key={section.id} section={section} />
         ))}
-        {promoAfter === -1 && <PromoBanners banners={promoBanners} />}
       </div>
     </div>
   );
@@ -99,10 +92,11 @@ async function FallbackHome() {
                 >
                   {category.imageUrl && (
                     <Image
-                      src={category.imageUrl}
+                      src={imageSrc(category.imageUrl)}
                       alt=""
                       fill
                       sizes="(min-width: 1024px) 25vw, 50vw"
+                      style={focusStyle(category.imageUrl)}
                       className="object-cover transition duration-500 group-hover:scale-105"
                     />
                   )}

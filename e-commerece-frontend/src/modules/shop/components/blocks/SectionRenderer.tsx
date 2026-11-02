@@ -3,7 +3,10 @@ import { FaqBlock } from "../FaqBlock";
 import { HeroSlider } from "./HeroSlider";
 import { ImageTextBlock } from "./ImageTextBlock";
 import { ProductsBlock } from "./ProductsBlock";
+import { PromoBanners } from "./PromoBanners";
 import { TilesBlock } from "./TilesBlock";
+import { VideosBlock } from "./VideosBlock";
+import { VideoShowcase } from "./VideoShowcase";
 
 const align = (value: unknown): "left" | "center" | "right" =>
   value === "center" || value === "right" ? value : "left";
@@ -31,6 +34,12 @@ export function SectionRenderer({ section }: { section: PublicSection }) {
       ) : null;
     case "COLLECTION_TILES":
       return <TilesBlock section={section} />;
+    case "VIDEO_SHOWCASE":
+      return <VideoShowcase section={section} />;
+    case "PROMO_BANNERS":
+      return <PromoBanners banners={section.banners ?? []} />;
+    case "VIDEO_BANNER":
+      return <VideosBlock videos={section.videos ?? []} />;
     case "PRODUCT_CAROUSEL":
     case "COLLECTION_GRID":
       return <ProductsBlock section={section} />;

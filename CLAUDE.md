@@ -119,6 +119,8 @@ These are **different** concepts. Don't merge them.
   - `RICH_TEXT`, `HERO_BANNER`, `IMAGE_WITH_TEXT`, `FAQ`
   - `COLLECTION_GRID` and `PRODUCT_CAROUSEL` (products from one collection)
   - `COLLECTION_TILES` (several collections as image tiles)
+  - `VIDEO_BANNER` (wide videos, banner style) and `VIDEO_SHOWCASE` ("Trending": tall reels, up to 50). Each block **owns its videos** (`Video.sectionId`, saved together with the block via `videos: [...]` on the section DTO, which replaces the block's list), so a page can have several trending blocks with different videos. There is no separate Videos screen or `/api/videos`.
+  - `PROMO_BANNERS` ("Side-by-side banners": 1 to 4 promotion banners, two per row, a single one full width). Same ownership pattern: `PromoBanner.sectionId`, saved with the block via `banners: [...]` on the section DTO. The Banners screen now only has the big top banners (`home_hero`); there is no `home_promo` placement any more.
 - The **homepage is the Page with slug `home`**. It is rendered from its sections, not hardcoded.
 - **Menu** (`main`, `footer`) with a **MenuItem** tree. Item types are `COLLECTION`, `CATEGORY`, `PAGE`, `URL` and `HEADING`; `HEADING` is a group title in the mega menu.
 - **Banner**, **Faq**, and **StoreSettings** (a single row with `id = 1`: WhatsApp number, social links, announcement bar, Meta Pixel ID, GA ID, GST rate).

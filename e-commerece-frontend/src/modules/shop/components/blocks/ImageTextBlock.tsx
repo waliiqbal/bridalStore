@@ -1,4 +1,5 @@
 import Image from "next/image";
+import { focusStyle, imageSrc } from "@/shared/lib/image-focus";
 import { MenuLink } from "@/shared/layouts/MenuLink";
 import type { PublicSection } from "../../types/page";
 
@@ -12,10 +13,11 @@ export function ImageTextBlock({ section }: { section: PublicSection }) {
       <div className="grid items-center gap-8 bg-cream md:grid-cols-2 md:gap-0">
         <div className={`relative aspect-[4/5] md:aspect-auto md:min-h-[34rem] ${imageRight ? "md:order-2" : ""}`}>
           <Image
-            src={section.imageUrl}
+            src={imageSrc(section.imageUrl)}
             alt={section.title ?? ""}
             fill
             sizes="(min-width: 768px) 50vw, 100vw"
+            style={focusStyle(section.imageUrl)}
             className="object-cover"
           />
         </div>

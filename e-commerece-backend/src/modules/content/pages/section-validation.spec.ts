@@ -56,4 +56,26 @@ describe('referencedCollectionIds', () => {
     // Leftover ids on other section types are ignored
     expect(referencedCollectionIds({ type: 'HERO_BANNER', collectionId: 'c1' })).toEqual([]);
   });
+
+  it('requires at least one video for the video blocks, and limits how many', () => {
+    expect(validateSection({ type: 'VIDEO_BANNER' })).toEqual(['Banner video blocks need at least one video']);
+    expect(validateSection({ type: 'VIDEO_SHOWCASE', videos: [] })).toEqual([
+      'Trending videos blocks need at least one video',
+    ]);
+    expect(validateSection({ type: 'VIDEO_SHOWCASE', videos: Array(50).fill({}) })).toEqual([]);
+    expect(validateSection({ type: 'VIDEO_SHOWCASE', videos: Array(51).fill({}) })).toEqual([
+      'Trending videos blocks can hold 50 videos at most',
+    ]);
+    expect(validateSection({ type: 'VIDEO_BANNER', videos: Array(11).fill({}) })).toHaveLength(1);
+  });
+
+  it('requires one to four banners for side-by-side banner blocks', () => {
+    expect(validateSection({ type: 'PROMO_BANNERS' })).toEqual([
+      'Side-by-side banners blocks need at least one banner',
+    ]);
+    expect(validateSection({ type: 'PROMO_BANNERS', banners: [{}, {}] })).toEqual([]);
+    expect(validateSection({ type: 'PROMO_BANNERS', banners: Array(5).fill({}) })).toEqual([
+      'Side-by-side banners blocks can hold 4 banners at most',
+    ]);
+  });
 });

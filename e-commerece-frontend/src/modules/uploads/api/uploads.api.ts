@@ -32,3 +32,22 @@ export async function uploadImages(files: File[]): Promise<UploadedImage[]> {
   }
   return uploaded;
 }
+
+// Matches the backend limit for videos
+export const MAX_VIDEO_MB = 50;
+
+export function checkVideoFile(file: File): string | null {
+  if (file.type !== "video/mp4" && file.type !== "video/webm") {
+    return `"${file.name}" is not an MP4 video. If it is a .mov from an iPhone, please save it as MP4 first.`;
+  }
+  if (file.size > MAX_VIDEO_MB * 1024 * 1024) {
+    return `"${file.name}" is bigger than ${MAX_VIDEO_MB} MB. Please shorten or compress it.`;
+  }
+  return null;
+}
+
+export async function uploadVideo(file: File): Promise<{ url: string }> {
+  const form = new FormData();
+  form.append("file", file);
+  return apiFetch<{ url: string }>("/admin/uploads/video", { method: "POST", body: form });
+}

@@ -5,6 +5,7 @@ import { LuTrash2 } from "react-icons/lu";
 import type { CategoryOption } from "@/modules/catalog/lib/category-options";
 import type { CollectionListItem } from "@/modules/collections/types/collections";
 import { SingleImageField } from "@/modules/uploads/components/SingleImageField";
+import { IMAGE_PRESETS } from "@/modules/uploads/lib/image-presets";
 import { Button } from "@/shared/admin/Button";
 import { useAdminUi } from "@/shared/admin/AdminUiProvider";
 import { Field, Input, Select, Toggle } from "@/shared/admin/Form";
@@ -12,10 +13,16 @@ import { Notice } from "@/shared/admin/Layout";
 import { Modal } from "@/shared/admin/Modal";
 import { ReorderList } from "@/shared/admin/ReorderList";
 import { RichTextField } from "@/shared/admin/RichTextField";
+import { BannerListField } from "@/modules/banners/components/BannerListField";
+import { VideoListField } from "@/modules/videos/components/VideoListField";
 import { addSection, updateSection } from "../api/pages.api";
 import type { LinkGroup } from "../lib/link-options";
 import {
   isProductBlock,
+  isPromoBlock,
+  isVideoBlock,
+  MAX_PROMO_BANNERS,
+  maxVideos,
   MAX_PRODUCT_LIMIT,
   MAX_TILES,
   newSectionForm,
@@ -149,11 +156,12 @@ export function SectionEditor({
 
         {type === "HERO_BANNER" && (
           <>
-            <Field label="Picture" required error={errors.image} hint="A wide picture works best.">
+            <Field label="Picture" required error={errors.image}>
               <SingleImageField
                 value={form.imageUrl}
                 onChange={(url) => set("imageUrl", url)}
                 alt={form.title}
+                preset={IMAGE_PRESETS.homeBanner}
               />
             </Field>
             <Field
@@ -164,6 +172,7 @@ export function SectionEditor({
                 value={form.mobileImageUrl}
                 onChange={(url) => set("mobileImageUrl", url)}
                 alt={form.title}
+                preset={IMAGE_PRESETS.homeBannerPhone}
               />
             </Field>
             {titleBox("Headline", undefined, "e.g. The Bridal Edit")}
@@ -272,6 +281,7 @@ export function SectionEditor({
                 value={form.imageUrl}
                 onChange={(url) => set("imageUrl", url)}
                 alt={form.title}
+                preset={IMAGE_PRESETS.pictureWithText}
               />
             </Field>
             <Field label="Picture is on the" htmlFor="b-side">
@@ -304,6 +314,50 @@ export function SectionEditor({
               <RichTextField id="b-body" value={form.body} onChange={(html) => set("body", html)} />
             </Field>
           </>
+        )}
+
+        {type === "VIDEO_SHOWCASE" && (
+          <>
+            {titleBox("Heading", undefined, "e.g. Trending Styles")}
+            {subtitleBox("Smaller line (optional)")}
+          </>
+        )}
+
+        {isPromoBlock(type) && (
+          <Field
+            label="Banners in this block"
+            required
+            error={errors.banners}
+            hint="The left and right banners sit side by side. Want another pair somewhere else on the page? Add this block again."
+          >
+            <BannerListField
+              banners={form.banners}
+              onChange={(banners) => set("banners", banners)}
+              max={MAX_PROMO_BANNERS}
+              linkGroups={linkGroups}
+            />
+          </Field>
+        )}
+
+        {isVideoBlock(type) && (
+          <Field
+            label="Videos in this block"
+            required
+            error={errors.videos}
+            hint={
+              type === "VIDEO_SHOWCASE"
+                ? "Up to 50. The one in the middle is bigger and plays. Want another Trending row? Add this block again with different videos."
+                : "One video shows like a banner. With more, they slide sideways."
+            }
+          >
+            <VideoListField
+              videos={form.videos}
+              onChange={(videos) => set("videos", videos)}
+              max={maxVideos(type)}
+              tall={type === "VIDEO_SHOWCASE"}
+              linkGroups={linkGroups}
+            />
+          </Field>
         )}
 
         {type === "FAQ" && (

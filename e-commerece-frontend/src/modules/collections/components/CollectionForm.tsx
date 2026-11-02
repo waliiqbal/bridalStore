@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import type { ProductListItem } from "@/modules/catalog/types/catalog";
 import type { Attribute, CategoryNode } from "@/modules/catalog/types/catalog";
 import { SingleImageField } from "@/modules/uploads/components/SingleImageField";
+import { IMAGE_PRESETS } from "@/modules/uploads/lib/image-presets";
 import { Button, LinkButton } from "@/shared/admin/Button";
 import { useAdminUi } from "@/shared/admin/AdminUiProvider";
 import { Field, Input, Select, Toggle } from "@/shared/admin/Form";
@@ -312,6 +313,7 @@ export function CollectionForm({
                 value={form.bannerImageUrl}
                 onChange={(url) => set("bannerImageUrl", url)}
                 alt={form.title}
+                preset={IMAGE_PRESETS.pageBanner}
               />
             </Field>
             <Field
@@ -322,16 +324,18 @@ export function CollectionForm({
                 value={form.mobileBannerImageUrl}
                 onChange={(url) => set("mobileBannerImageUrl", url)}
                 alt={form.title}
+                preset={IMAGE_PRESETS.pageBannerPhone}
               />
             </Field>
             <Field
               label="Homepage tile picture (optional)"
-              hint="A tall picture, 1200 × 1500 px, shown when this collection appears as a tile on the homepage. If empty, the phone banner or banner is used."
+              hint="Shown when this collection appears as a tile on the homepage. If empty, the phone banner or banner is used."
             >
               <SingleImageField
                 value={form.tileImageUrl}
                 onChange={(url) => set("tileImageUrl", url)}
                 alt={form.title}
+                preset={IMAGE_PRESETS.tile}
               />
             </Field>
           </div>

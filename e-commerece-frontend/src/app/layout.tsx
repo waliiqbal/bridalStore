@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Geist, Playfair_Display } from "next/font/google";
+import { Barlow_Condensed, Geist, Playfair_Display } from "next/font/google";
 import { brand } from "@/config/brand";
 import { env } from "@/config/env";
 import { getSettings } from "@/modules/shop/api/shop.api";
@@ -15,6 +15,13 @@ const geistSans = Geist({
 const playfair = Playfair_Display({
   variable: "--font-playfair",
   subsets: ["latin"],
+});
+
+// A narrow, tall font for the header menus
+const condensed = Barlow_Condensed({
+  variable: "--font-barlow-condensed",
+  subsets: ["latin"],
+  weight: ["400", "500", "600"],
 });
 
 // The store name comes from Settings in the admin, so renaming the store there renames every page.
@@ -45,7 +52,7 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
   };
 
   return (
-    <html lang="en" className={`${geistSans.variable} ${playfair.variable} h-full antialiased`}>
+    <html lang="en" className={`${geistSans.variable} ${playfair.variable} ${condensed.variable} h-full antialiased`}>
       {/* Browser extensions (e.g. Grammarly) add attributes to body before React loads */}
       <body className="flex min-h-full flex-col" suppressHydrationWarning>
         <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLdString(organization) }} />

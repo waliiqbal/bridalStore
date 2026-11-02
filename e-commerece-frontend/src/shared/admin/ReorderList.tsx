@@ -2,6 +2,8 @@
 
 import { useState, type ReactNode } from "react";
 import {
+  LuChevronsDown,
+  LuChevronsUp,
   LuChevronDown,
   LuChevronLeft,
   LuChevronRight,
@@ -15,8 +17,8 @@ export interface ReorderControls {
   index: number;
 }
 
-// A list the owner can re-order by dragging, or with the arrow buttons
-// (drag-and-drop doesn't work on phones, the arrows do).
+// A list the owner can re-order by dragging. On phones and tablets, where dragging does not work,
+// arrow buttons appear instead.
 export function ReorderList<T>({
   items,
   getKey,
@@ -47,8 +49,9 @@ export function ReorderList<T>({
 
   const Back = direction === "vertical" ? LuChevronUp : LuChevronLeft;
   const Forward = direction === "vertical" ? LuChevronDown : LuChevronRight;
+  // The arrows are only for phones and tablets, where dragging does not work. On a laptop you drag.
   const arrow =
-    "flex h-8 w-8 items-center justify-center rounded-sm hover:bg-cream disabled:opacity-30 disabled:hover:bg-transparent";
+    "flex h-8 w-8 items-center justify-center rounded-sm hover:bg-cream disabled:opacity-30 disabled:hover:bg-transparent md:hidden";
 
   return (
     <ul className={className}>
@@ -76,6 +79,18 @@ export function ReorderList<T>({
             >
               <LuGripVertical className="h-4 w-4" />
             </button>
+            {direction === "vertical" && items.length > 3 && (
+              <button
+                type="button"
+                aria-label="Move to the very top"
+                title="Move to the very top"
+                disabled={index === 0}
+                onClick={() => move(index, 0)}
+                className={arrow}
+              >
+                <LuChevronsUp className="h-4 w-4" />
+              </button>
+            )}
             <button
               type="button"
               aria-label={direction === "vertical" ? "Move up" : "Move earlier"}
@@ -96,6 +111,18 @@ export function ReorderList<T>({
             >
               <Forward className="h-4 w-4" />
             </button>
+            {direction === "vertical" && items.length > 3 && (
+              <button
+                type="button"
+                aria-label="Move to the very bottom"
+                title="Move to the very bottom"
+                disabled={index === items.length - 1}
+                onClick={() => move(index, items.length - 1)}
+                className={arrow}
+              >
+                <LuChevronsDown className="h-4 w-4" />
+              </button>
+            )}
           </span>
         );
 

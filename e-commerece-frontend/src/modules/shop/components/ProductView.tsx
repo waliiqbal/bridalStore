@@ -141,7 +141,7 @@ export function ProductView({
               options={colours.map((value) => ({
                 value,
                 swatch: swatchFor(value),
-                disabled: !colourAvailable(variants, value, null),
+                disabled: !colourAvailable(variants, value, size),
               }))}
             />
           )}

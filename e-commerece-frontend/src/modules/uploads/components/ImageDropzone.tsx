@@ -11,11 +11,14 @@ export function ImageDropzone({
   multiple = true,
   label = "Drag pictures here, or click to choose",
   compact = false,
+  hint,
 }: {
   onUploaded: (images: UploadedImage[]) => void;
   multiple?: boolean;
   label?: string;
   compact?: boolean;
+  // Advice shown in the box, like "Best size: 2400 × 900 px"
+  hint?: string;
 }) {
   const ui = useAdminUi();
   const inputRef = useRef<HTMLInputElement>(null);
@@ -72,6 +75,7 @@ export function ImageDropzone({
         <LuImagePlus className="h-7 w-7 text-gold" />
       )}
       <p className="text-sm font-medium">{busy ? "Uploading…" : label}</p>
+      {hint && <p className="text-sm font-semibold text-gold">{hint}</p>}
       <p className="text-xs text-muted">JPG, PNG or WebP · up to {MAX_IMAGE_MB} MB each</p>
       <input
         ref={inputRef}

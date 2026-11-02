@@ -1,14 +1,17 @@
 import type { IconType } from "react-icons";
 import {
   LuCircleHelp,
+  LuClapperboard,
   LuColumns2,
   LuGalleryHorizontal,
   LuGrid2X2,
+  LuPanelsTopLeft,
   LuImage,
   LuLayoutGrid,
   LuType,
+  LuVideo,
 } from "react-icons/lu";
-import type { PageSection, SectionInput, SectionType } from "../types/pages";
+import type { PageSection, SectionBanner, SectionInput, SectionType, SectionVideo } from "../types/pages";
 
 export const MAX_TILES = 12;
 export const MAX_PRODUCT_LIMIT = 24;
@@ -61,6 +64,26 @@ export const SECTION_TYPES: SectionTypeDef[] = [
     icon: LuType,
   },
   {
+    type: "PROMO_BANNERS",
+    label: "Side-by-side banners",
+    description:
+      "Two promotion banners next to each other, like “Eid Sale” and “Free alterations”. Put it anywhere on the page. Add the block again for another pair.",
+    icon: LuPanelsTopLeft,
+  },
+  {
+    type: "VIDEO_BANNER",
+    label: "Banner video",
+    description: "A wide video that looks like a banner. Add one video, or several that slide sideways.",
+    icon: LuClapperboard,
+  },
+  {
+    type: "VIDEO_SHOWCASE",
+    label: "Trending videos",
+    description:
+      "A row of tall videos like reels (up to 50), the one in the middle bigger. You can add this block more than once, each with its own videos.",
+    icon: LuVideo,
+  },
+  {
     type: "FAQ",
     label: "Questions and answers",
     description: "Shows the questions from your FAQ list, so customers find answers fast.",
@@ -73,6 +96,95 @@ export const sectionDef = (type: SectionType): SectionTypeDef =>
 
 export const isProductBlock = (type: SectionType) =>
   type === "PRODUCT_CAROUSEL" || type === "COLLECTION_GRID";
+
+export const isVideoBlock = (type: SectionType) => type === "VIDEO_BANNER" || type === "VIDEO_SHOWCASE";
+
+export const isPromoBlock = (type: SectionType) => type === "PROMO_BANNERS";
+
+// The most banners one side-by-side block holds (two per row)
+export const MAX_PROMO_BANNERS = 4;
+
+// A banner as edited on screen. `key` only tells list rows apart.
+export interface BannerFormItem {
+  key: string;
+  title: string;
+  subtitle: string;
+  imageUrl: string;
+  mobileImageUrl: string | null;
+  linkUrl: string;
+  buttonText: string;
+  isActive: boolean;
+}
+
+let nextBannerKey = 0;
+export const newBannerKey = () => `banner-${nextBannerKey++}`;
+
+// An empty place in a side-by-side banners block
+export const newBlankBanner = (): BannerFormItem => ({
+  key: newBannerKey(),
+  title: "",
+  subtitle: "",
+  imageUrl: "",
+  mobileImageUrl: null,
+  linkUrl: "",
+  buttonText: "",
+  isActive: true,
+});
+
+// A place counts as used as soon as anything is filled in
+const isUsedBanner = (banner: BannerFormItem) =>
+  Boolean(
+    banner.imageUrl ||
+      banner.mobileImageUrl ||
+      banner.title.trim() ||
+      banner.subtitle.trim() ||
+      banner.buttonText.trim() ||
+      banner.linkUrl.trim(),
+  );
+
+// The block always shows at least two places
+const withMinimumPlaces = (banners: BannerFormItem[]): BannerFormItem[] => [
+  ...banners,
+  ...Array.from({ length: Math.max(0, 2 - banners.length) }, newBlankBanner),
+];
+
+export const toBannerItem = (banner: SectionBanner): BannerFormItem => ({
+  key: newBannerKey(),
+  title: banner.title ?? "",
+  subtitle: banner.subtitle ?? "",
+  imageUrl: banner.imageUrl,
+  mobileImageUrl: banner.mobileImageUrl,
+  linkUrl: banner.linkUrl ?? "",
+  buttonText: banner.buttonText ?? "",
+  isActive: banner.isActive,
+});
+
+// The most videos one block holds
+export const MAX_BANNER_VIDEOS = 10;
+export const MAX_SHOWCASE_VIDEOS = 50;
+export const maxVideos = (type: SectionType) => (type === "VIDEO_BANNER" ? MAX_BANNER_VIDEOS : MAX_SHOWCASE_VIDEOS);
+
+// A video as edited on screen. `key` only tells list rows apart; the link is text while editing.
+export interface VideoFormItem {
+  key: string;
+  title: string;
+  videoUrl: string;
+  posterUrl: string | null;
+  linkUrl: string;
+  isActive: boolean;
+}
+
+let nextVideoKey = 0;
+export const newVideoKey = () => `video-${nextVideoKey++}`;
+
+export const toVideoItem = (video: SectionVideo): VideoFormItem => ({
+  key: newVideoKey(),
+  title: video.title ?? "",
+  videoUrl: video.videoUrl,
+  posterUrl: video.posterUrl,
+  linkUrl: video.linkUrl ?? "",
+  isActive: video.isActive,
+});
 
 export type TextAlign = "left" | "center" | "right";
 export type TextTone = "light" | "dark";
@@ -94,6 +206,8 @@ export interface SectionFormState {
   textAlign: TextAlign;
   textTone: TextTone;
   imageSide: ImageSide;
+  videos: VideoFormItem[];
+  banners: BannerFormItem[];
   isActive: boolean;
 }
 
@@ -113,6 +227,8 @@ export function newSectionForm(type: SectionType): SectionFormState {
     textAlign: "center",
     textTone: "light",
     imageSide: "left",
+    videos: [],
+    banners: type === "PROMO_BANNERS" ? withMinimumPlaces([]) : [],
     isActive: true,
   };
 }
@@ -137,6 +253,8 @@ export function toSectionForm(section: PageSection): SectionFormState {
     textAlign: pick(settings.textAlign, ["left", "center", "right"], "center"),
     textTone: pick(settings.textTone, ["light", "dark"], "light"),
     imageSide: pick(settings.imageSide, ["left", "right"], "left"),
+    videos: (section.videos ?? []).map(toVideoItem),
+    banners: section.type === "PROMO_BANNERS" ? withMinimumPlaces((section.banners ?? []).map(toBannerItem)) : [],
     isActive: section.isActive,
   };
 }
@@ -149,7 +267,7 @@ const plainText = (html: string) =>
     .trim();
 
 export type SectionErrors = Partial<
-  Record<"title" | "image" | "body" | "collection" | "collections" | "limit" | "link" | "button", string>
+  Record<"title" | "image" | "body" | "collection" | "collections" | "limit" | "link" | "button" | "videos" | "banners", string>
 >;
 
 export function validateSectionForm(form: SectionFormState): SectionErrors {
@@ -170,6 +288,28 @@ export function validateSectionForm(form: SectionFormState): SectionErrors {
     const limit = Number(form.productLimit);
     if (!Number.isInteger(limit) || limit < 1 || limit > MAX_PRODUCT_LIMIT) {
       errors.limit = `Enter a number from 1 to ${MAX_PRODUCT_LIMIT}.`;
+    }
+  }
+  if (isVideoBlock(type)) {
+    if (form.videos.length === 0) errors.videos = "Please add at least one video.";
+    else if (form.videos.length > maxVideos(type)) errors.videos = `You can add up to ${maxVideos(type)} videos.`;
+  }
+  if (isPromoBlock(type)) {
+    const used = form.banners.filter(isUsedBanner);
+    if (used.length === 0) errors.banners = "Please add a picture to at least one banner.";
+    else if (form.banners.length > MAX_PROMO_BANNERS) errors.banners = `You can add up to ${MAX_PROMO_BANNERS} banners.`;
+    else {
+      const problems = form.banners.flatMap((banner, index) => {
+        if (!isUsedBanner(banner)) return [];
+        const name = `Banner ${index + 1}`;
+        if (!banner.imageUrl) return [`${name} needs a picture.`];
+        if (banner.linkUrl.trim() && !SAFE_LINK.test(banner.linkUrl.trim())) {
+          return [`${name}: use a link like /collections/eid-edit, or an address starting with https://`];
+        }
+        if (banner.buttonText.trim() && !banner.linkUrl.trim()) return [`${name}: add a link for the button to open.`];
+        return [];
+      });
+      if (problems.length > 0) errors.banners = problems[0];
     }
   }
   if (form.linkUrl.trim() && !SAFE_LINK.test(form.linkUrl.trim())) {
@@ -208,6 +348,26 @@ export function toSectionInput(form: SectionFormState): SectionInput {
     input.buttonText = orNull(form.buttonText);
   }
   if (type === "COLLECTION_TILES") input.collectionIds = form.collectionIds;
+  if (isPromoBlock(type)) {
+    input.banners = form.banners.filter((banner) => banner.imageUrl).map((banner) => ({
+      title: orNull(banner.title),
+      subtitle: orNull(banner.subtitle),
+      imageUrl: banner.imageUrl,
+      mobileImageUrl: banner.mobileImageUrl,
+      linkUrl: orNull(banner.linkUrl),
+      buttonText: orNull(banner.buttonText),
+      isActive: banner.isActive,
+    }));
+  }
+  if (isVideoBlock(type)) {
+    input.videos = form.videos.map((video) => ({
+      title: orNull(video.title),
+      videoUrl: video.videoUrl,
+      posterUrl: video.posterUrl,
+      linkUrl: orNull(video.linkUrl),
+      isActive: video.isActive,
+    }));
+  }
 
   if (type === "HERO_BANNER") {
     input.settings = {
@@ -234,5 +394,14 @@ export function describeSection(section: PageSection, collectionTitle: (id: stri
       return section.collectionIds.map(collectionTitle).join(", ") || "No collections";
     case "FAQ":
       return section.title || "Questions and answers";
+    case "PROMO_BANNERS": {
+      const count = section.banners?.length ?? 0;
+      return `${section.title || "Side-by-side banners"} · ${count} ${count === 1 ? "banner" : "banners"}`;
+    }
+    case "VIDEO_SHOWCASE":
+    case "VIDEO_BANNER": {
+      const count = section.videos?.length ?? 0;
+      return `${section.title || (section.type === "VIDEO_BANNER" ? "Banner video" : "Trending videos")} · ${count} ${count === 1 ? "video" : "videos"}`;
+    }
   }
 }

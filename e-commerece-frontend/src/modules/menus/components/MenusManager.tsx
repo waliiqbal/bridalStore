@@ -264,7 +264,11 @@ function Branch({
                 <p className={`flex flex-wrap items-center gap-2 ${isTop ? "font-semibold" : "font-medium"}`}>
                   <span className="truncate">{node.label}</span>
                   <Badge tone={node.type === "HEADING" ? "gold" : "neutral"}>
-                    {node.type === "HEADING" ? "Group title" : typeLabel(node.type).replace(/^An? /, "")}
+                    {node.type === "HEADING"
+                      ? "Group title"
+                      : node.type === "TEXT"
+                        ? "Plain words"
+                        : typeLabel(node.type).replace(/^An? /, "")}
                   </Badge>
                   {node.highlight && <Badge tone="red">{node.highlight}</Badge>}
                 </p>
@@ -273,7 +277,9 @@ function Branch({
                     ? hasChildren
                       ? `${node.children.length} link${node.children.length === 1 ? "" : "s"} inside`
                       : "Nothing inside yet, so it is hidden"
-                    : `${node.targetName ?? ""}${node.targetName && node.href ? " · " : ""}${node.href ?? ""}`}
+                    : node.type === "TEXT"
+                      ? "Shown as plain words"
+                      : `${node.targetName ?? ""}${node.targetName && node.href ? " · " : ""}${node.href ?? ""}`}
                 </p>
                 {warning && <p className="text-xs text-amber-700">{warning}</p>}
               </div>

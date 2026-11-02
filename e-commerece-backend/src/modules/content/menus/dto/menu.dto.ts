@@ -16,7 +16,7 @@ import { MenuItemType } from '../../../../generated/prisma/enums.js';
 export class CreateMenuItemDto {
   @IsString()
   @MinLength(1)
-  @MaxLength(80)
+  @MaxLength(300)
   label: string;
 
   @IsEnum(MenuItemType)

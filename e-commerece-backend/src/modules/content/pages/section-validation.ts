@@ -5,6 +5,13 @@ export const PRODUCT_SECTION_TYPES: PageSectionType[] = ['COLLECTION_GRID', 'PRO
 export const MAX_PRODUCT_SECTIONS_PER_PAGE = 12;
 export const MAX_TILES = 12;
 export const MAX_PRODUCT_LIMIT = 24;
+// Videos one block can hold: the Trending row shows up to 50, a banner video block is a short slider
+export const SHOWCASE_MAX = 50;
+export const BANNER_VIDEO_MAX = 10;
+// A side-by-side banners block holds one to four banners (two per row)
+export const PROMO_BANNERS_MAX = 4;
+// Bounds the work needed to render one page
+export const MAX_VIDEO_SECTIONS_PER_PAGE = 10;
 
 export interface SectionShape {
   type: PageSectionType;
@@ -13,6 +20,10 @@ export interface SectionShape {
   collectionId?: string | null;
   collectionIds?: string[];
   productLimit?: number;
+  // VIDEO_BANNER / VIDEO_SHOWCASE: the videos of the block
+  videos?: unknown[];
+  // PROMO_BANNERS: the banners of the block
+  banners?: unknown[];
 }
 
 const LABELS: Record<PageSectionType, string> = {
@@ -23,7 +34,12 @@ const LABELS: Record<PageSectionType, string> = {
   COLLECTION_TILES: 'Collection tiles',
   IMAGE_WITH_TEXT: 'Image with text',
   FAQ: 'FAQ',
+  VIDEO_SHOWCASE: 'Trending videos',
+  VIDEO_BANNER: 'Banner video',
+  PROMO_BANNERS: 'Side-by-side banners',
 };
+
+export const isVideoSection = (type: PageSectionType) => type === 'VIDEO_SHOWCASE' || type === 'VIDEO_BANNER';
 
 export const isProductSection = (type: PageSectionType) => PRODUCT_SECTION_TYPES.includes(type);
 
@@ -54,6 +70,19 @@ export function validateSection(section: SectionShape): string[] {
       break;
     case 'RICH_TEXT':
       if (!section.body?.trim()) errors.push(`${label} sections need some text`);
+      break;
+    case 'VIDEO_SHOWCASE':
+    case 'VIDEO_BANNER': {
+      const max = section.type === 'VIDEO_SHOWCASE' ? SHOWCASE_MAX : BANNER_VIDEO_MAX;
+      if (!section.videos?.length) errors.push(`${label} blocks need at least one video`);
+      else if (section.videos.length > max) errors.push(`${label} blocks can hold ${max} videos at most`);
+      break;
+    }
+    case 'PROMO_BANNERS':
+      if (!section.banners?.length) errors.push(`${label} blocks need at least one banner`);
+      else if (section.banners.length > PROMO_BANNERS_MAX) {
+        errors.push(`${label} blocks can hold ${PROMO_BANNERS_MAX} banners at most`);
+      }
       break;
     case 'FAQ':
       break;

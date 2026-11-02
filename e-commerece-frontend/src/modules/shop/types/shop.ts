@@ -14,12 +14,15 @@ export interface StoreSettings {
   tiktokUrl: string | null;
   metaPixelId: string | null;
   googleAnalyticsId: string | null;
+  // The promises above the footer (null = built-in wording, [] = hidden) and the payment logos
+  footerPromises: { title: string; text: string }[] | null;
+  footerPaymentIcons: string[];
 }
 
 export interface PublicMenuItem {
   id: string;
   label: string;
-  type: "COLLECTION" | "CATEGORY" | "PAGE" | "URL" | "HEADING";
+  type: "COLLECTION" | "CATEGORY" | "PAGE" | "URL" | "HEADING" | "TEXT";
   // null for group titles (they don't link anywhere)
   href: string | null;
   imageUrl: string | null;

@@ -7,11 +7,6 @@ export const PLACEMENTS: { value: string; label: string; hint: string }[] = [
     label: "Homepage: top banners",
     hint: "The big banners at the very top of the homepage.",
   },
-  {
-    value: "home_promo",
-    label: "Homepage: promo banners",
-    hint: "Smaller promotion banners further down the homepage.",
-  },
 ];
 
 export const placementLabel = (value: string) => PLACEMENTS.find((p) => p.value === value)?.label ?? value;

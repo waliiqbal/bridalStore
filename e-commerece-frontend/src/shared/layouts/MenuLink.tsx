@@ -7,21 +7,30 @@ export function MenuLink({
   className,
   children,
   onClick,
+  "aria-label": ariaLabel,
 }: {
   href: string;
   className?: string;
   children: ReactNode;
   onClick?: () => void;
+  "aria-label"?: string;
 }) {
   if (href.startsWith("/")) {
     return (
-      <Link href={href} className={className} onClick={onClick}>
+      <Link href={href} className={className} onClick={onClick} aria-label={ariaLabel}>
         {children}
       </Link>
     );
   }
   return (
-    <a href={href} className={className} onClick={onClick} target="_blank" rel="noopener noreferrer">
+    <a
+      href={href}
+      className={className}
+      onClick={onClick}
+      aria-label={ariaLabel}
+      target="_blank"
+      rel="noopener noreferrer"
+    >
       {children}
     </a>
   );

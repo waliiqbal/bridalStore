@@ -13,5 +13,5 @@ export const getPage = (slug: string, currency: string) =>
 
 // Banners that are switched on and inside their start and end dates right now.
 // "revalidate" is short because a scheduled banner appears/disappears by the clock, not by an edit.
-export const getBanners = (placement: "home_hero" | "home_promo") =>
+export const getBanners = (placement: "home_hero") =>
   storefrontFetch<PublicBanner[]>(`/banners?placement=${placement}`, { tags: ["banners"], revalidate: 60 });

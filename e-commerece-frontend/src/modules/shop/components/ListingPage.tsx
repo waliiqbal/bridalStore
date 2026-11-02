@@ -83,7 +83,7 @@ export function ListingPage({
       <Breadcrumbs trail={breadcrumb} />
 
       {bannerUrl ? (
-        <div className="relative mb-6 flex h-44 items-end overflow-hidden bg-cream sm:h-64">
+        <div className="relative mb-6 flex aspect-[4/3] items-end overflow-hidden bg-cream sm:aspect-[16/9] lg:aspect-[2/1] lg:max-h-[640px]">
           {/* The banner is the biggest thing at the top of the page, so it loads first */}
           <ArtDirectedImage
             desktopSrc={bannerUrl}

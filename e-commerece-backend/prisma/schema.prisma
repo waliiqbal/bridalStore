@@ -94,6 +94,9 @@ enum PageSectionType {
   COLLECTION_TILES // several collections as image tiles
   IMAGE_WITH_TEXT
   FAQ
+  VIDEO_SHOWCASE // up to 50 tall videos in a sliding row, the middle one bigger ("Trending"); the block owns its videos
+  VIDEO_BANNER // a few wide videos shown like a banner; the block owns its videos
+  PROMO_BANNERS // one to four promotion banners side by side; the block owns its banners
 }
 
 enum MenuItemType {
@@ -101,7 +104,8 @@ enum MenuItemType {
   CATEGORY
   PAGE
   URL
-  HEADING // group title inside a mega menu, e.g. "Style", "Occasion"
+  HEADING // group title inside a mega menu, e.g. "Style", "Occasion"; in the footer menu, a column
+  TEXT // plain words with no link, e.g. a line of text in a footer column
 }
 
 enum AdminRole {
@@ -681,6 +685,45 @@ model Banner {
   @@index([placement, isActive])
 }
 
+// A video inside a VIDEO_BANNER or VIDEO_SHOWCASE block (MP4 uploaded by the owner). Every block has its own videos.
+model Video {
+  id        String      @id @default(cuid())
+  sectionId String
+  section   PageSection @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+  title     String?
+  videoUrl  String
+  // Picture shown before the video plays; optional
+  posterUrl String?
+  // Optional page the video opens when clicked (a product, category, page…)
+  linkUrl   String?
+  sortOrder Int         @default(0)
+  isActive  Boolean     @default(true)
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+
+  @@index([sectionId, sortOrder])
+}
+
+// A banner inside a PROMO_BANNERS block (the "Side-by-side banners" block). Every block has its own banners.
+model PromoBanner {
+  id             String      @id @default(cuid())
+  sectionId      String
+  section        PageSection @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+  title          String?
+  subtitle       String?
+  imageUrl       String
+  // Optional picture for phones
+  mobileImageUrl String?
+  linkUrl        String?
+  buttonText     String?
+  sortOrder      Int         @default(0)
+  isActive       Boolean     @default(true)
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+
+  @@index([sectionId, sortOrder])
+}
+
 // Unlimited pages: About, Shipping, Returns, Privacy, FAQ, and anything new
 model Page {
   id             String        @id @default(cuid())
@@ -719,6 +762,10 @@ model PageSection {
   productLimit  Int             @default(8)
   // Anything extra (layout, colours) without new columns
   settings      Json?
+  // VIDEO_BANNER / VIDEO_SHOWCASE: the videos of this block
+  videos        Video[]
+  // PROMO_BANNERS: the banners of this block
+  banners       PromoBanner[]
   sortOrder     Int             @default(0)
   isActive      Boolean         @default(true)
 
@@ -791,6 +838,11 @@ model StoreSettings {
   emailFooterNote     String?
   // When false, new reviews wait for the owner to approve them
   autoApproveReviews  Boolean  @default(false)
+  // The footer's columns are the Footer menu. These two are the rest of the footer.
+  // Up to 3 promises shown above the footer: [{ "title": "...", "text": "..." }]. null = built-in, [] = hidden
+  footerPromises      Json?
+  // Which payment logos to show: visa, mastercard, paypal, amex, applepay
+  footerPaymentIcons  String[] @default(["visa", "mastercard", "paypal"])
   updatedAt           DateTime @updatedAt
 }
 

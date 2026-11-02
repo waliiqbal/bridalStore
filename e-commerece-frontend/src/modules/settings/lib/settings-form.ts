@@ -1,3 +1,4 @@
+import { FOOTER_DEFAULTS, MAX_FOOTER_PROMISES } from "@/config/footer-defaults";
 import { EMAIL_PATTERN } from "@/shared/lib/validators";
 import type { AdminSettings, SettingsInput } from "../types/settings";
 
@@ -111,5 +112,43 @@ export function toSettingsInput(form: SettingsFormState): SettingsInput {
     metaPixelId: orNull(form.metaPixelId),
     googleAnalyticsId: orNull(form.googleAnalyticsId)?.toUpperCase() ?? null,
     emailFooterNote: orNull(form.emailFooterNote),
+  };
+}
+
+// ───────────── Footer (Settings → Footer) ─────────────
+// Kept apart from the plain text boxes above: it holds a list of promises and a set of ticks.
+
+export interface FooterFormState {
+  // Always MAX_FOOTER_PROMISES rows; a row with no title is not shown
+  promises: { title: string; text: string }[];
+  paymentIcons: string[];
+}
+
+export type FooterFormErrors = Partial<Record<"promises", string>>;
+
+// Promises that were never saved show the wording the website is using
+export function toFooterState(settings: AdminSettings): FooterFormState {
+  const saved = settings.footerPromises ?? FOOTER_DEFAULTS.promises;
+  const promises = Array.from({ length: MAX_FOOTER_PROMISES }, (_, index) => ({
+    title: saved[index]?.title ?? "",
+    text: saved[index]?.text ?? "",
+  }));
+  return { promises, paymentIcons: settings.footerPaymentIcons };
+}
+
+export function validateFooter(footer: FooterFormState): FooterFormErrors {
+  const errors: FooterFormErrors = {};
+  if (footer.promises.some((promise) => promise.text.trim() !== "" && promise.title.trim() === "")) {
+    errors.promises = "Each line needs a short title. Clear both boxes to leave a line out.";
+  }
+  return errors;
+}
+
+export function toFooterInput(footer: FooterFormState): SettingsInput {
+  return {
+    footerPromises: footer.promises
+      .filter((promise) => promise.title.trim() !== "")
+      .map((promise) => ({ title: promise.title.trim(), text: promise.text.trim() })),
+    footerPaymentIcons: footer.paymentIcons,
   };
 }

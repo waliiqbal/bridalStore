@@ -1,6 +1,6 @@
 // These match the backend's admin menu responses exactly.
 
-export type MenuItemType = "COLLECTION" | "CATEGORY" | "PAGE" | "URL" | "HEADING";
+export type MenuItemType = "COLLECTION" | "CATEGORY" | "PAGE" | "URL" | "HEADING" | "TEXT";
 
 export interface MenuSummary {
   id: string;

@@ -17,10 +17,14 @@ import type {
 } from './dto/page.dto.js';
 import {
   isProductSection,
+  isVideoSection,
   MAX_PRODUCT_SECTIONS_PER_PAGE,
+  MAX_VIDEO_SECTIONS_PER_PAGE,
   referencedCollectionIds,
   validateSection,
 } from './section-validation.js';
+import { replaceSectionBanners, SECTION_BANNERS_SELECT } from './section-banners.js';
+import { replaceSectionVideos, SECTION_VIDEOS_SELECT } from './section-videos.js';
 
 export const HOME_SLUG = 'home';
 
@@ -37,6 +41,8 @@ const SECTION_SELECT = {
   collectionIds: true,
   productLimit: true,
   settings: true,
+  videos: SECTION_VIDEOS_SELECT,
+  banners: SECTION_BANNERS_SELECT,
   sortOrder: true,
   isActive: true,
 } satisfies Prisma.PageSectionSelect;
@@ -148,14 +154,19 @@ export class PagesAdminService {
       where: { pageId },
       _max: { sortOrder: true },
     });
-    const section = await this.prisma.pageSection.create({
-      data: {
-        ...sectionData(dto),
-        type: dto.type,
-        pageId,
-        sortOrder: (last._max.sortOrder ?? -1) + 1,
-      },
-      select: SECTION_SELECT,
+    const section = await this.prisma.$transaction(async (tx) => {
+      const created = await tx.pageSection.create({
+        data: {
+          ...sectionData(dto),
+          type: dto.type,
+          pageId,
+          sortOrder: (last._max.sortOrder ?? -1) + 1,
+        },
+        select: { id: true },
+      });
+      if (dto.videos) await replaceSectionVideos(tx, created.id, dto.videos);
+      if (dto.banners) await replaceSectionBanners(tx, created.id, dto.banners);
+      return tx.pageSection.findUniqueOrThrow({ where: { id: created.id }, select: SECTION_SELECT });
     });
     void this.revalidation.notify([CacheTags.page(slug)]);
     return section;
@@ -174,10 +185,14 @@ export class PagesAdminService {
     const merged = { ...current, ...definedOnly(dto) } as CreateSectionDto;
     await this.validateSectionState(pageId, merged, sectionId);
 
-    const section = await this.prisma.pageSection.update({
-      where: { id: sectionId },
-      data: definedOnly({ ...sectionData(dto), type: dto.type }),
-      select: SECTION_SELECT,
+    const section = await this.prisma.$transaction(async (tx) => {
+      await tx.pageSection.update({
+        where: { id: sectionId },
+        data: definedOnly({ ...sectionData(dto), type: dto.type }),
+      });
+      if (dto.videos) await replaceSectionVideos(tx, sectionId, dto.videos);
+      if (dto.banners) await replaceSectionBanners(tx, sectionId, dto.banners);
+      return tx.pageSection.findUniqueOrThrow({ where: { id: sectionId }, select: SECTION_SELECT });
     });
     void this.revalidation.notify([CacheTags.page(slug)]);
     return section;
@@ -216,7 +231,7 @@ export class PagesAdminService {
 
     const ids = [...new Set(referencedCollectionIds(section))];
     // Tiles may point at collections or categories; the ids never clash
-    const [foundCollections, foundCategories, productSections] = await Promise.all([
+    const [foundCollections, foundCategories, productSections, videoSections] = await Promise.all([
       ids.length ? this.prisma.collection.count({ where: { id: { in: ids } } }) : 0,
       section.type === 'COLLECTION_TILES' && ids.length
         ? this.prisma.category.count({ where: { id: { in: ids } } })
@@ -230,6 +245,15 @@ export class PagesAdminService {
             },
           })
         : 0,
+      isVideoSection(section.type)
+        ? this.prisma.pageSection.count({
+            where: {
+              pageId,
+              type: { in: ['VIDEO_BANNER', 'VIDEO_SHOWCASE'] },
+              ...(excludeSectionId && { id: { not: excludeSectionId } }),
+            },
+          })
+        : 0,
     ]);
     if (foundCollections + foundCategories !== ids.length) {
       throw new BadRequestException('One or more selected collections or categories no longer exist');
@@ -238,6 +262,9 @@ export class PagesAdminService {
       throw new BadRequestException(
         `A page can have at most ${MAX_PRODUCT_SECTIONS_PER_PAGE} product sections`,
       );
+    }
+    if (videoSections >= MAX_VIDEO_SECTIONS_PER_PAGE) {
+      throw new BadRequestException(`A page can have at most ${MAX_VIDEO_SECTIONS_PER_PAGE} video blocks`);
     }
   }
 
@@ -258,7 +285,7 @@ export class PagesAdminService {
 
 // DTO → Prisma data. `settings: null` must become Prisma.JsonNull.
 function sectionData(dto: Partial<CreateSectionDto>) {
-  const { type: _type, settings, ...rest } = dto;
+  const { type: _type, settings, videos: _videos, banners: _banners, ...rest } = dto;
   return {
     ...rest,
     settings:

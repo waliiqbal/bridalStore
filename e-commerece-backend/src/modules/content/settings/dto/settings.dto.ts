@@ -1,7 +1,11 @@
-import { Transform } from 'class-transformer';
+import { Transform, Type } from 'class-transformer';
 import {
+  ArrayMaxSize,
+  ArrayUnique,
+  IsArray,
   IsBoolean,
   IsEmail,
+  IsIn,
   IsNumber,
   IsOptional,
   IsString,
@@ -10,11 +14,28 @@ import {
   MaxLength,
   Min,
   MinLength,
+  ValidateNested,
 } from 'class-validator';
 
 const HTTPS_URL = /^https:\/\/\S+$/i;
 const stripTags = ({ value }: { value: unknown }) =>
   typeof value === 'string' ? value.replace(/<[^>]*>/g, '').trim() : value;
+
+export const FOOTER_PAYMENT_ICONS = ['visa', 'mastercard', 'paypal', 'amex', 'applepay'] as const;
+
+// One of the (up to 3) promises shown above the footer
+export class FooterPromiseDto {
+  @Transform(stripTags)
+  @IsString()
+  @MinLength(1)
+  @MaxLength(60)
+  title: string;
+
+  @Transform(stripTags)
+  @IsString()
+  @MaxLength(140)
+  text: string;
+}
 
 export class UpdateSettingsDto {
   @IsOptional()
@@ -75,6 +96,20 @@ export class UpdateSettingsDto {
   @IsOptional()
   @IsBoolean()
   autoApproveReviews?: boolean;
+
+  // Footer promises. null = the built-in wording, an empty list hides the strip.
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(3)
+  @ValidateNested({ each: true })
+  @Type(() => FooterPromiseDto)
+  footerPromises?: FooterPromiseDto[] | null;
+
+  @IsOptional()
+  @IsArray()
+  @ArrayUnique()
+  @IsIn(FOOTER_PAYMENT_ICONS, { each: true })
+  footerPaymentIcons?: string[];
 
   @IsOptional()
   @Matches(HTTPS_URL, { message: 'instagramUrl must start with https://' })

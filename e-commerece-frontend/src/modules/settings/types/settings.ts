@@ -18,6 +18,8 @@ export interface AdminSettings {
   sendShippingEmails: boolean;
   emailFooterNote: string | null;
   autoApproveReviews: boolean;
+  footerPromises: { title: string; text: string }[] | null;
+  footerPaymentIcons: string[];
   updatedAt: string;
 }
 
@@ -39,4 +41,6 @@ export interface SettingsInput {
   sendShippingEmails?: boolean;
   emailFooterNote?: string | null;
   autoApproveReviews?: boolean;
+  footerPromises?: { title: string; text: string }[] | null;
+  footerPaymentIcons?: string[];
 }

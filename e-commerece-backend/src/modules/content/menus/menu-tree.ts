@@ -10,8 +10,14 @@ export interface MenuItemRow {
   url: string | null;
   imageUrl: string | null;
   highlight: string | null;
-  collection: { slug: string; isPublished: boolean } | null;
-  category: { slug: string; isVisible: boolean } | null;
+  collection: {
+    slug: string;
+    isPublished: boolean;
+    tileImageUrl?: string | null;
+    mobileBannerImageUrl?: string | null;
+    bannerImageUrl?: string | null;
+  } | null;
+  category: { slug: string; isVisible: boolean; tileImageUrl?: string | null; imageUrl?: string | null } | null;
   page: { slug: string; isPublished: boolean } | null;
 }
 
@@ -46,8 +52,21 @@ export function menuHref(item: MenuItemRow): string | null {
     case 'URL':
       return item.url;
     case 'HEADING':
+    case 'TEXT':
       return null;
   }
+}
+
+// The picture shown for an item in the big menu: its own picture if the owner set one, otherwise
+// the tile picture of the category or collection it opens (then that one's own banner).
+export function menuImage(item: MenuItemRow): string | null {
+  if (item.imageUrl) return item.imageUrl;
+  if (item.type === 'CATEGORY') return item.category?.tileImageUrl ?? item.category?.imageUrl ?? null;
+  if (item.type === 'COLLECTION') {
+    const c = item.collection;
+    return c?.tileImageUrl ?? c?.mobileBannerImageUrl ?? c?.bannerImageUrl ?? null;
+  }
+  return null;
 }
 
 // Items whose target is missing, unpublished or hidden are left out.
@@ -62,6 +81,7 @@ export function isMenuItemVisible(item: MenuItemRow): boolean {
     case 'URL':
       return !!item.url;
     case 'HEADING':
+    case 'TEXT':
       return true;
   }
 }
@@ -83,7 +103,7 @@ export function buildPublicMenu(rows: MenuItemRow[]): PublicMenuItem[] {
           label: node.label,
           type: node.type,
           href: menuHref(node),
-          imageUrl: node.imageUrl,
+          imageUrl: menuImage(node),
           highlight: node.highlight,
           children,
         },
@@ -118,6 +138,8 @@ export function validateMenuTarget(input: MenuTargetInput): string | null {
       return Object.values(targets).some(Boolean)
         ? 'Headings are group titles and cannot link anywhere'
         : null;
+    case 'TEXT':
+      return Object.values(targets).some(Boolean) ? 'Plain text cannot link anywhere' : null;
   }
 }
 
