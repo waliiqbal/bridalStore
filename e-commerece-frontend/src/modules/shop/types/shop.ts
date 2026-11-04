@@ -12,6 +12,10 @@ export interface StoreSettings {
   instagramUrl: string | null;
   facebookUrl: string | null;
   tiktokUrl: string | null;
+  // Where the shop is. The map needs both coordinates.
+  storeAddress: string | null;
+  mapLatitude: number | null;
+  mapLongitude: number | null;
   metaPixelId: string | null;
   googleAnalyticsId: string | null;
   // The promises above the footer (null = built-in wording, [] = hidden) and the payment logos

@@ -3,6 +3,7 @@ import { focusStyle, imageSrc } from "@/shared/lib/image-focus";
 import { LuChevronDown } from "react-icons/lu";
 import type { PublicMenuItem } from "@/modules/shop/types/shop";
 import { highlightClass, MenuLink } from "./MenuLink";
+import { MenuItemShell } from "./MenuItemShell";
 
 // The row of menu items under the logo. An item with things inside opens a wide panel when you
 // hover it or tab to it: each thing inside is a picture tile with its name underneath, and group
@@ -14,10 +15,11 @@ export function MegaMenu({ items }: { items: PublicMenuItem[] }) {
     <nav aria-label="Main" className="hidden border-t border-line lg:block">
       <ul className="mx-auto flex max-w-[1600px] items-center justify-center gap-1 px-6">
         {items.map((item) => (
-          <li key={item.id} className="group">
-            <TopItem item={item} />
-            {item.children.length > 0 && <Panel item={item} />}
-          </li>
+          <MenuItemShell
+            key={item.id}
+            top={<TopItem item={item} />}
+            panel={item.children.length > 0 ? <Panel item={item} /> : null}
+          />
         ))}
       </ul>
     </nav>

@@ -97,6 +97,7 @@ enum PageSectionType {
   VIDEO_SHOWCASE // up to 50 tall videos in a sliding row, the middle one bigger ("Trending"); the block owns its videos
   VIDEO_BANNER // a few wide videos shown like a banner; the block owns its videos
   PROMO_BANNERS // one to four promotion banners side by side; the block owns its banners
+  STORE_MAP // the shop's address and a map; reads StoreSettings, so the block has no data of its own
 }
 
 enum MenuItemType {
@@ -827,6 +828,10 @@ model StoreSettings {
   instagramUrl        String?
   facebookUrl         String?
   tiktokUrl           String?
+  // Where the shop is: shown in the footer and in the "Map and address" page block. The map needs both coordinates.
+  storeAddress        String?
+  mapLatitude         Float?
+  mapLongitude        Float?
   metaPixelId         String?
   googleAnalyticsId   String?
   // When true, orders shipped to zones without GST pay prices with the GST portion removed

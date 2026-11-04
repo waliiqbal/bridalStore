@@ -4,6 +4,7 @@ import { HeroSlider } from "./HeroSlider";
 import { ImageTextBlock } from "./ImageTextBlock";
 import { ProductsBlock } from "./ProductsBlock";
 import { PromoBanners } from "./PromoBanners";
+import { StoreMapBlock } from "./StoreMapBlock";
 import { TilesBlock } from "./TilesBlock";
 import { VideosBlock } from "./VideosBlock";
 import { VideoShowcase } from "./VideoShowcase";
@@ -52,6 +53,8 @@ export function SectionRenderer({ section }: { section: PublicSection }) {
           <div className="richtext" dangerouslySetInnerHTML={{ __html: section.body }} />
         </section>
       ) : null;
+    case "STORE_MAP":
+      return <StoreMapBlock section={section} />;
     case "FAQ":
       return (
         <div className="px-4 lg:px-6">

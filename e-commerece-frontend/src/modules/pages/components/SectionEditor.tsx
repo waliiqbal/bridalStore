@@ -360,6 +360,16 @@ export function SectionEditor({
           </Field>
         )}
 
+        {type === "STORE_MAP" && (
+          <>
+            {titleBox("Heading (optional)", undefined, "e.g. Visit our studio")}
+            <Notice>
+              The address and the map come from <strong>Settings → Shop address and map</strong>. Change them there and
+              every place that shows them updates.
+            </Notice>
+          </>
+        )}
+
         {type === "FAQ" && (
           <>
             {titleBox("Heading", "Shown above the questions.")}

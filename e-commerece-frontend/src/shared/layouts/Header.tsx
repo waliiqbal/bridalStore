@@ -39,8 +39,9 @@ export async function Header({ currency }: { currency: string }) {
       )}
 
       <div className="relative border-b border-line">
-        {/* Logo always centred. Left: menu button (phones). Right: search bar (wide screens) and icons */}
-        <div className="mx-auto grid max-w-[1600px] grid-cols-[1fr_auto_1fr] items-center gap-2 px-3 py-3 sm:gap-3 sm:px-4 lg:gap-8 lg:px-6 lg:py-4">
+        {/* Logo in the middle (a little left of it on laptops, where the right side needs more room).
+            Left: menu button (phones). Right: search bar (wide screens) and icons */}
+        <div className="mx-auto grid max-w-[1600px] grid-cols-[1fr_auto_1fr] min-[1240px]:grid-cols-[1fr_auto_1.2fr] items-center gap-2 px-3 py-3 sm:gap-3 sm:px-4 lg:gap-8 lg:px-6 lg:py-4">
           <div className="flex min-w-0 items-center">
             {/* One row on laptops and bigger. Smaller screens get these links inside the menu button. */}
             <nav
@@ -83,7 +84,9 @@ export async function Header({ currency }: { currency: string }) {
           </div>
 
           {/* The name matches the words in the logo, which screen-reader software needs */}
-          <Link href="/" aria-label={storeName} className="shrink-0">
+          {/* The word "Malikah" sits low in the logo picture (the crown is above it), so lift the picture a
+              little to put the word on the same line as the menu links and search */}
+          <Link href="/" aria-label={storeName} className="shrink-0 sm:-translate-y-1.5">
             <Logo preload />
           </Link>
 
@@ -107,9 +110,9 @@ export async function Header({ currency }: { currency: string }) {
                 target="_blank"
                 rel="noopener noreferrer"
                 aria-label="Chat with us on WhatsApp"
-                className="hidden h-10 w-10 items-center justify-center text-[#25D366] transition hover:scale-110 sm:flex"
+                className="hidden h-9 w-9 items-center justify-center text-[#25D366] transition hover:scale-110 sm:flex"
               >
-                <FaWhatsapp className="h-7 w-7" />
+                <FaWhatsapp className="h-6 w-6" />
               </a>
             )}
             <AccountLink />

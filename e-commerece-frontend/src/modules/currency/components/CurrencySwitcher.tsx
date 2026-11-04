@@ -82,7 +82,7 @@ export function CurrencySwitcher({
         aria-haspopup="listbox"
         aria-expanded={open}
         aria-label={`Prices shown in ${current}. Change currency`}
-        className="flex h-10 items-center gap-1.5 rounded-sm px-1.5 text-sm hover:text-gold"
+        className={`flex items-center gap-1.5 rounded-sm px-1.5 text-sm hover:text-gold ${compact ? "h-9" : "h-10"}`}
       >
         <Flag code={current} className="h-[18px] w-[27px]" />
         {!compact && <span className="font-medium">{current}</span>}

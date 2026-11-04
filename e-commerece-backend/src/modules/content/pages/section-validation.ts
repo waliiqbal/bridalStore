@@ -37,6 +37,7 @@ const LABELS: Record<PageSectionType, string> = {
   VIDEO_SHOWCASE: 'Trending videos',
   VIDEO_BANNER: 'Banner video',
   PROMO_BANNERS: 'Side-by-side banners',
+  STORE_MAP: 'Map and address',
 };
 
 export const isVideoSection = (type: PageSectionType) => type === 'VIDEO_SHOWCASE' || type === 'VIDEO_BANNER';
@@ -84,7 +85,9 @@ export function validateSection(section: SectionShape): string[] {
         errors.push(`${label} blocks can hold ${PROMO_BANNERS_MAX} banners at most`);
       }
       break;
+    // These read their content from elsewhere (the FAQ list, the shop's Settings)
     case 'FAQ':
+    case 'STORE_MAP':
       break;
   }
 

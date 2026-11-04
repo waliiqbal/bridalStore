@@ -17,7 +17,7 @@ export function HeaderSearch() {
   }
 
   return (
-    <form onSubmit={submit} role="search" className="flex h-11 w-full max-w-xl overflow-hidden rounded-md">
+    <form onSubmit={submit} role="search" className="flex h-10 w-full max-w-xl overflow-hidden rounded-md">
       <input
         type="search"
         value={term}
@@ -30,7 +30,7 @@ export function HeaderSearch() {
       <button
         type="submit"
         aria-label="Search"
-        className="flex w-12 shrink-0 items-center justify-center bg-black text-white transition hover:bg-gold"
+        className="flex w-11 shrink-0 items-center justify-center bg-black text-white transition hover:bg-gold"
       >
         <LuSearch className="h-5 w-5" />
       </button>

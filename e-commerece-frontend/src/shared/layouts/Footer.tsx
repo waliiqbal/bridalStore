@@ -13,11 +13,12 @@ import {
   FaXTwitter,
   FaYoutube,
 } from "react-icons/fa6";
-import { LuGlobe, LuHeartHandshake, LuLink, LuLock, LuMail, LuPhone } from "react-icons/lu";
+import { LuGlobe, LuHeartHandshake, LuLink, LuLock, LuMail, LuMapPin, LuPhone } from "react-icons/lu";
 import type { IconType } from "react-icons";
 import { brand } from "@/config/brand";
 import { resolvePromises } from "@/config/footer-defaults";
 import { getMenu, getSettings } from "@/modules/shop/api/shop.api";
+import { directionsUrl, type StorePlace } from "@/modules/shop/lib/store-map";
 import type { PublicMenuItem } from "@/modules/shop/types/shop";
 import { Logo } from "@/shared/components/Logo";
 import { imageSrc } from "@/shared/lib/image-focus";
@@ -131,6 +132,7 @@ export async function Footer() {
           <Column key={column.id} title={column.label} imageUrl={column.imageUrl} blocks={toBlocks(column.children)} />
         ))}
         {loose.length > 0 && <Column title="" imageUrl={null} blocks={toBlocks(loose)} />}
+        {settings && <VisitUs place={settings} />}
         {columns.length === 0 && loose.length === 0 && (
           <div>
             <Logo size="lg" />
@@ -158,6 +160,29 @@ export async function Footer() {
         </div>
       </div>
     </footer>
+  );
+}
+
+// Where the shop is: the address from Settings and a directions link (the map is on the Contact us page).
+// Phone and email are in the owner's footer menu.
+function VisitUs({ place }: { place: StorePlace }) {
+  const directions = directionsUrl(place);
+  if (!directions) return null;
+  return (
+    <div>
+      <h2 className={heading}>Visit us</h2>
+      <div className="space-y-5 text-base">
+        {place.storeAddress && (
+          <p className="flex max-w-xs items-start gap-3">
+            <LuMapPin className="mt-1 h-5 w-5 shrink-0" aria-hidden />
+            <span>{place.storeAddress}</span>
+          </p>
+        )}
+        <a href={directions} target="_blank" rel="noopener noreferrer" className="inline-block hover:text-gold">
+          Get directions
+        </a>
+      </div>
+    </div>
   );
 }
 

@@ -123,6 +123,25 @@ export class UpdateSettingsDto {
   @Matches(HTTPS_URL, { message: 'tiktokUrl must start with https://' })
   tiktokUrl?: string | null;
 
+  // Where the shop is (plain text). The map needs both coordinates, e.g. -33.923199 and 150.9151.
+  @IsOptional()
+  @Transform(stripTags)
+  @IsString()
+  @MaxLength(300)
+  storeAddress?: string | null;
+
+  @IsOptional()
+  @IsNumber({ maxDecimalPlaces: 7 })
+  @Min(-90)
+  @Max(90)
+  mapLatitude?: number | null;
+
+  @IsOptional()
+  @IsNumber({ maxDecimalPlaces: 7 })
+  @Min(-180)
+  @Max(180)
+  mapLongitude?: number | null;
+
   @IsOptional()
   @Matches(/^\d{5,20}$/, { message: 'Meta Pixel ID is a number, e.g. 123456789012345' })
   metaPixelId?: string | null;

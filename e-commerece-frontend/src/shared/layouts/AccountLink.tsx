@@ -13,9 +13,9 @@ export function AccountLink() {
     <Link
       href={customer ? "/account/orders" : "/login"}
       aria-label={customer ? `My account${name ? `, signed in as ${name}` : ""}` : "Sign in"}
-      className="relative hidden h-10 w-10 items-center justify-center hover:text-gold sm:flex"
+      className="relative hidden h-9 w-9 items-center justify-center hover:text-gold sm:flex"
     >
-      <LuCircleUserRound className="h-6.5 w-6.5" strokeWidth={1.6} />
+      <LuCircleUserRound className="h-5.5 w-5.5" strokeWidth={1.6} />
       {customer && (
         <span
           aria-hidden

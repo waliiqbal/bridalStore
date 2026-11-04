@@ -8,6 +8,7 @@ import {
   LuPanelsTopLeft,
   LuImage,
   LuLayoutGrid,
+  LuMapPin,
   LuType,
   LuVideo,
 } from "react-icons/lu";
@@ -88,6 +89,13 @@ export const SECTION_TYPES: SectionTypeDef[] = [
     label: "Questions and answers",
     description: "Shows the questions from your FAQ list, so customers find answers fast.",
     icon: LuCircleHelp,
+  },
+  {
+    type: "STORE_MAP",
+    label: "Map and address",
+    description:
+      "Your shop's address with a map and a “Get directions” link. The address and map position come from Settings, so you only change them there.",
+    icon: LuMapPin,
   },
 ];
 
@@ -394,6 +402,8 @@ export function describeSection(section: PageSection, collectionTitle: (id: stri
       return section.collectionIds.map(collectionTitle).join(", ") || "No collections";
     case "FAQ":
       return section.title || "Questions and answers";
+    case "STORE_MAP":
+      return section.title || "Map and address";
     case "PROMO_BANNERS": {
       const count = section.banners?.length ?? 0;
       return `${section.title || "Side-by-side banners"} · ${count} ${count === 1 ? "banner" : "banners"}`;
