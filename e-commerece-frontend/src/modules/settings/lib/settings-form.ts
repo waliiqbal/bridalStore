@@ -12,6 +12,9 @@ export interface SettingsFormState {
   instagramUrl: string;
   facebookUrl: string;
   tiktokUrl: string;
+  storeAddress: string;
+  // "latitude, longitude" as Google Maps shows it, in one box
+  mapPosition: string;
   metaPixelId: string;
   googleAnalyticsId: string;
   emailFooterNote: string;
@@ -37,6 +40,16 @@ export type SettingsFormErrors = Partial<Record<keyof SettingsFormState, string>
 
 export const ANNOUNCEMENT_MAX = 300;
 export const EMAIL_NOTE_MAX = 300;
+export const ADDRESS_MAX = 300;
+
+// "-33.923199, 150.9151" (the numbers Google Maps gives when you click a place) → both coordinates
+export function parseMapPosition(text: string): { latitude: number; longitude: number } | null {
+  const match = text.trim().match(/^(-?\d{1,2}(?:\.\d+)?)\s*,\s*(-?\d{1,3}(?:\.\d+)?)$/);
+  if (!match) return null;
+  const latitude = Number(match[1]);
+  const longitude = Number(match[2]);
+  return Math.abs(latitude) <= 90 && Math.abs(longitude) <= 180 ? { latitude, longitude } : null;
+}
 
 export function toFormState(settings: AdminSettings): SettingsFormState {
   return {
@@ -49,6 +62,11 @@ export function toFormState(settings: AdminSettings): SettingsFormState {
     instagramUrl: settings.instagramUrl ?? "",
     facebookUrl: settings.facebookUrl ?? "",
     tiktokUrl: settings.tiktokUrl ?? "",
+    storeAddress: settings.storeAddress ?? "",
+    mapPosition:
+      settings.mapLatitude !== null && settings.mapLongitude !== null
+        ? `${settings.mapLatitude}, ${settings.mapLongitude}`
+        : "",
     metaPixelId: settings.metaPixelId ?? "",
     googleAnalyticsId: settings.googleAnalyticsId ?? "",
     emailFooterNote: settings.emailFooterNote ?? "",
@@ -87,6 +105,12 @@ export function validateSettings(form: SettingsFormState): SettingsFormErrors {
       errors[key] = "The link must start with https://";
     }
   }
+  if (form.storeAddress.length > ADDRESS_MAX) {
+    errors.storeAddress = `Please keep this under ${ADDRESS_MAX} characters.`;
+  }
+  if (filled(form.mapPosition) && !parseMapPosition(form.mapPosition)) {
+    errors.mapPosition = "Use two numbers with a comma, like -33.923199, 150.9151.";
+  }
   if (filled(form.metaPixelId) && !PIXEL.test(form.metaPixelId.trim())) {
     errors.metaPixelId = "The Pixel ID is a number, like 123456789012345.";
   }
@@ -99,6 +123,7 @@ export function validateSettings(form: SettingsFormState): SettingsFormErrors {
 const orNull = (text: string) => (text.trim() ? text.trim() : null);
 
 export function toSettingsInput(form: SettingsFormState): SettingsInput {
+  const position = parseMapPosition(form.mapPosition);
   return {
     storeName: form.storeName.trim(),
     contactEmail: orNull(form.contactEmail),
@@ -109,6 +134,9 @@ export function toSettingsInput(form: SettingsFormState): SettingsInput {
     instagramUrl: orNull(form.instagramUrl),
     facebookUrl: orNull(form.facebookUrl),
     tiktokUrl: orNull(form.tiktokUrl),
+    storeAddress: orNull(form.storeAddress),
+    mapLatitude: position?.latitude ?? null,
+    mapLongitude: position?.longitude ?? null,
     metaPixelId: orNull(form.metaPixelId),
     googleAnalyticsId: orNull(form.googleAnalyticsId)?.toUpperCase() ?? null,
     emailFooterNote: orNull(form.emailFooterNote),

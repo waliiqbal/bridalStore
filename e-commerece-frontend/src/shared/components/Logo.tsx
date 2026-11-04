@@ -6,7 +6,7 @@ import logo from "../../../public/brand/malikah-logo.png";
 // on light backgrounds. The original on navy is public/brand/malikah-logo-navy.png.
 const SIZES = {
   sm: "h-9 w-auto",
-  md: "h-12 w-auto sm:h-16",
+  md: "h-12 w-auto",
   lg: "h-16 w-auto sm:h-20",
 } as const;
 

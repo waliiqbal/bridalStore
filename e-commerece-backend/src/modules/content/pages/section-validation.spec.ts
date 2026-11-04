@@ -78,4 +78,8 @@ describe('referencedCollectionIds', () => {
       'Side-by-side banners blocks can hold 4 banners at most',
     ]);
   });
+
+  it('needs nothing from the map and address block (it reads the shop settings)', () => {
+    expect(validateSection({ type: 'STORE_MAP' })).toEqual([]);
+  });
 });

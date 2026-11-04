@@ -19,7 +19,8 @@ export type SectionType =
   | "FAQ"
   | "VIDEO_SHOWCASE"
   | "VIDEO_BANNER"
-  | "PROMO_BANNERS";
+  | "PROMO_BANNERS"
+  | "STORE_MAP";
 
 export interface PublicSection {
   id: string;

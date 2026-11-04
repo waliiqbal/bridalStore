@@ -132,6 +132,8 @@ export type PublicSection = SectionBase &
         }[];
       }
     | { type: 'RICH_TEXT'; body: string | null }
+    // The website fills the address and map in from the public settings
+    | { type: 'STORE_MAP' }
     | {
         type: 'HERO_BANNER' | 'IMAGE_WITH_TEXT';
         body: string | null;
@@ -281,6 +283,8 @@ export class PagesService {
           return section.videos.length ? [{ ...base, type: section.type, videos: section.videos }] : [];
         case 'PROMO_BANNERS':
           return section.banners.length ? [{ ...base, type: section.type, banners: section.banners }] : [];
+        case 'STORE_MAP':
+          return [{ ...base, type: section.type }];
         case 'RICH_TEXT':
           return [{ ...base, type: section.type, body: section.body }];
         case 'HERO_BANNER':

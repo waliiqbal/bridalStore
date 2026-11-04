@@ -6,9 +6,12 @@ import { useAdminUi } from "@/shared/admin/AdminUiProvider";
 import { Field, Input, Toggle } from "@/shared/admin/Form";
 import { Card } from "@/shared/admin/Layout";
 import { updateSettings } from "../api/settings.api";
+import { StoreMap } from "@/modules/shop/components/StoreMap";
 import {
+  ADDRESS_MAX,
   ANNOUNCEMENT_MAX,
   EMAIL_NOTE_MAX,
+  parseMapPosition,
   toFlags,
   toFooterInput,
   toFooterState,
@@ -102,6 +105,7 @@ export function SettingsForm({ settings, onSaved }: { settings: AdminSettings; o
   );
 
   const message = form.announcementBar.trim();
+  const mapPosition = parseMapPosition(form.mapPosition);
 
   return (
     <div className="max-w-4xl space-y-6 pb-4">
@@ -112,6 +116,51 @@ export function SettingsForm({ settings, onSaved }: { settings: AdminSettings; o
           </div>
           {text("contactEmail", "Contact email", { type: "email", placeholder: "hello@yourstore.com" })}
           {text("contactPhone", "Contact phone", { maxLength: 40, placeholder: "+61 400 000 000" })}
+        </div>
+      </Card>
+
+      <Card
+        title="Shop address and map"
+        description="The address and a “Get directions” link show in the footer under “Visit us”. The map shows in the “Map and address” block on your Contact us page (you can add that block to any page)."
+      >
+        <div className="grid gap-5">
+          <Field
+            label="Shop address"
+            htmlFor="s-storeAddress"
+            error={errors.storeAddress}
+            hint="How customers should read it, like “Liverpool, NSW, Australia”."
+          >
+            <Input
+              id="s-storeAddress"
+              value={form.storeAddress}
+              maxLength={ADDRESS_MAX}
+              placeholder="Shop 1, 123 Example Street, Liverpool NSW 2170"
+              onChange={(event) => set("storeAddress", event.target.value)}
+            />
+          </Field>
+          <Field
+            label="Map position"
+            htmlFor="s-mapPosition"
+            error={errors.mapPosition}
+            hint="Open Google Maps, right-click your shop, then click the two numbers at the top of the menu to copy them. Paste them here. Leave empty to hide the map."
+          >
+            <Input
+              id="s-mapPosition"
+              value={form.mapPosition}
+              placeholder="-33.923199, 150.9151"
+              onChange={(event) => set("mapPosition", event.target.value)}
+            />
+          </Field>
+          {mapPosition && (
+            <div>
+              <p className="mb-1.5 text-xs uppercase tracking-wide text-muted">How the map will look</p>
+              <StoreMap
+                latitude={mapPosition.latitude}
+                longitude={mapPosition.longitude}
+                className="h-56 w-full rounded-sm"
+              />
+            </div>
+          )}
         </div>
       </Card>
 

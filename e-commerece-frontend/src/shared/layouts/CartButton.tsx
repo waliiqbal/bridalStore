@@ -12,7 +12,7 @@ export function CartButton() {
   const pathname = usePathname();
   const label =
     itemCount > 0 ? `Open your bag, ${itemCount} ${itemCount === 1 ? "item" : "items"}` : "Open your bag";
-  const className = "relative flex h-10 w-10 items-center justify-center hover:text-gold";
+  const className = "relative flex h-10 w-10 items-center justify-center hover:text-gold sm:h-9 sm:w-9";
   const badge = (
     <span className="absolute right-0 top-0 flex h-4.5 min-w-4.5 items-center justify-center rounded-full bg-gold px-1 text-[10px] font-semibold text-white">
       {itemCount}
@@ -22,14 +22,14 @@ export function CartButton() {
   if (/^\/(cart|checkout)(\/|$)/.test(pathname)) {
     return (
       <Link href="/cart" aria-label={label} className={className}>
-        <LuShoppingBag className="h-6.5 w-6.5" strokeWidth={1.6} />
+        <LuShoppingBag className="h-6.5 w-6.5 sm:h-5.5 sm:w-5.5" strokeWidth={1.6} />
         {badge}
       </Link>
     );
   }
   return (
     <button type="button" onClick={openDrawer} aria-label={label} className={className}>
-      <LuShoppingBag className="h-6.5 w-6.5" strokeWidth={1.6} />
+      <LuShoppingBag className="h-6.5 w-6.5 sm:h-5.5 sm:w-5.5" strokeWidth={1.6} />
       {badge}
     </button>
   );

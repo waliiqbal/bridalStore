@@ -11,6 +11,9 @@ export interface AdminSettings {
   instagramUrl: string | null;
   facebookUrl: string | null;
   tiktokUrl: string | null;
+  storeAddress: string | null;
+  mapLatitude: number | null;
+  mapLongitude: number | null;
   metaPixelId: string | null;
   googleAnalyticsId: string | null;
   removeGstForExports: boolean;
@@ -34,6 +37,9 @@ export interface SettingsInput {
   instagramUrl?: string | null;
   facebookUrl?: string | null;
   tiktokUrl?: string | null;
+  storeAddress?: string | null;
+  mapLatitude?: number | null;
+  mapLongitude?: number | null;
   metaPixelId?: string | null;
   googleAnalyticsId?: string | null;
   removeGstForExports?: boolean;
