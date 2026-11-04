@@ -3,8 +3,9 @@
 import { trackAddToCart, trackViewContent } from "@/modules/tracking/lib/track";
 import { useEffect, useState, type ReactNode } from "react";
 import { FaWhatsapp } from "react-icons/fa6";
-import { LuTruck } from "react-icons/lu";
+import { LuMinus, LuPlus, LuTruck } from "react-icons/lu";
 import { useCart } from "@/modules/cart/components/CartProvider";
+import { MAX_PER_LINE } from "@/modules/cart/constants";
 import { formatMoney } from "@/shared/lib/money";
 import {
   colourAvailable,
@@ -50,9 +51,13 @@ export function ProductView({
   const [failed, setFailed] = useState(false);
   // "Add to cart" was pressed before choosing a colour/size: say what's missing, in red
   const [prompted, setPrompted] = useState(false);
+  const [wanted, setWanted] = useState(1);
 
   const selection = { colour, size };
   const variant = selectedVariant(variants, selection, colours, sizes);
+  // Most the shopper can add: the server's limit, and what is left of the chosen size and colour
+  const limit = Math.max(1, Math.min(MAX_PER_LINE, variant?.stock ?? MAX_PER_LINE));
+  const quantity = Math.min(wanted, limit);
   const stock = stockLabel(variant, variants);
   const complete = isComplete(selection, colours, sizes);
 
@@ -78,11 +83,12 @@ export function ProductView({
       return;
     }
     setFailed(false);
-    const added = await add(variant.id, 1);
+    const added = await add(variant.id, quantity);
     setFailed(!added);
     if (added) {
+      setWanted(1);
       trackAddToCart(
-        { sku: variant.sku, name: product.name, unitPrice: variant.price.amount, quantity: 1 },
+        { sku: variant.sku, name: product.name, unitPrice: variant.price.amount, quantity },
         variant.price.currencyCode,
       );
     }
@@ -186,7 +192,34 @@ export function ProductView({
           </p>
         )}
 
-        <div className="mt-6 flex flex-col gap-3 sm:flex-row">
+        <div className="mt-5 flex items-center gap-4">
+          <span className="text-sm font-medium">Quantity</span>
+          <div className="inline-flex items-center border border-line" role="group" aria-label="Quantity">
+            <button
+              type="button"
+              aria-label="One less"
+              disabled={quantity <= 1}
+              onClick={() => setWanted(quantity - 1)}
+              className="flex h-10 w-10 items-center justify-center hover:bg-cream disabled:opacity-40"
+            >
+              <LuMinus className="h-4 w-4" />
+            </button>
+            <span className="w-10 text-center text-sm" aria-live="polite">
+              {quantity}
+            </span>
+            <button
+              type="button"
+              aria-label="One more"
+              disabled={quantity >= limit}
+              onClick={() => setWanted(quantity + 1)}
+              className="flex h-10 w-10 items-center justify-center hover:bg-cream disabled:opacity-40"
+            >
+              <LuPlus className="h-4 w-4" />
+            </button>
+          </div>
+        </div>
+
+        <div className="mt-4 flex flex-col gap-3 sm:flex-row">
           <button
             type="button"
             onClick={addToBag}
